@@ -1,0 +1,270 @@
+rules_version = '2';
+
+// MindfulNest Firestore Security Rules v3
+// Source: CANONICAL_DATA_MODEL_v1_13.md §Security Rules Summary
+// COPPA-safe: no analytics, no child identifiers in logs
+//
+// Auth model:
+//   - Therapists: Firebase Auth UID = therapist document ID
+//   - Parents: Firebase Auth UID = parent document ID
+//   - Children: NOT Firebase Auth users. Accessed via parent's auth.
+//   - Cloud Functions: use Admin SDK (bypass these rules entirely)
+//
+// Security review history:
+//   v1 — Initial rules from CDM table (April 16, 2026)
+//   v2 — 5-fix revision after adversarial counter-agent review + 3-agent deep investigation
+//     F1:  Removed parent read on therapists (parent doesn't need therapist name)
+//     F2:  Therapist reads parents only via parent.linkedTherapist match
+//     F8/F9: Removed narrativeEvents + arcDefinitions client rules (Cloud Function only)
+//     F11: Added field-level restrictions — parent cannot write notification tracking fields
+//     F15: COPPA chatEnabled gate with clarifying comment
+//   v3 — 6-fix revision after blind spot deep investigation (3 agents)
+//     BS1a: Invite claim race condition — require status == 'active' before claim
+//     BS1b: Child create field validation — require linkedParent, linkedTherapist, displayName
+//     BS1c: affectedKeys() warning comment (nested field footgun)
+//     BS2:  CDM security table synced (done in CDM v1.13, not here)
+//     BS3:  Bar delete prevention — split write into create/update (no delete)
+//     BS4:  Invite code UUID v4 format validation
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper Functions ──────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isTherapist() {
+      return exists(/databases/$(database)/documents/therapists/$(request.auth.uid));
+    }
+
+    function isParent() {
+      return exists(/databases/$(database)/documents/parents/$(request.auth.uid));
+    }
+
+    function getChild(childId) {
+      return get(/databases/$(database)/documents/children/$(childId)).data;
+    }
+
+    function isChildsTherapist(childId) {
+      let childData = getChild(childId);
+      return childData != null && childData.linkedTherapist == request.auth.uid;
+    }
+
+    function isChildsParent(childId) {
+      let childData = getChild(childId);
+      return childData != null && childData.linkedParent == request.auth.uid;
+    }
+
+    // Fields that ONLY Cloud Functions can write (notification tracking).
+    // These are server-side concerns — parent device never needs to touch them.
+    // Directus prod_locked_decisions ID 105 (CHILD_FIELD_WRITE_RESTRICTIONS).
+    //
+    // NOTE: Therapist-facing summary fields (totalSessions, sessionsThisWeek,
+    // domainSessionCounts, completions, lastActivityAt, engagementStatus, weekStartDate)
+    // are client-writable for MVP because module completion batch runs client-side.
+    // V2: Move completion writes to Cloud Functions, then add these to protected list.
+    //
+    // ⚠️ BS1c WARNING: .diff().affectedKeys() returns TOP-LEVEL keys only.
+    // A write to "someMap.nestedField" returns "someMap", NOT "someMap.nestedField".
+    // All protected fields MUST be top-level on the child doc. If a protected field
+    // is ever moved inside a nested map, this check will silently stop working.
+    function parentWriteTouchesProtectedFields() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        // Notification tracking — Cloud Function only
+        'parentNotifiedSkills',
+        'therapistFirstCompletionNotified',
+        'inactivityNotifiedAt',
+        // Relationship fields — immutable after creation (set once in invite claim)
+        // Counter-agent v3 finding: parent could break therapeutic link by updating these
+        'linkedParent',
+        'linkedTherapist'
+      ]);
+    }
+
+    // ─── therapists/{therapistId} ──────────────────────────────────
+    // CDM: Therapist = own doc read/write
+    // CDM (updated v3): Parent = no access
+    // CDM: Child = no access
+    //
+    // F1 FIX: Parent does NOT need to read therapist doc at all.
+    // "Your therapist recommended this technique" uses child.preferredTechniques,
+    // not therapist.displayName. No parent read rule needed.
+    // Directus prod_locked_decisions ID 103.
+
+    // BS2 FIX: Therapist can read + update own doc, but NOT delete.
+    // Account deactivation/unlink is handled by Cloud Functions only
+    // (soft-delete with status: "deactivated", not hard delete).
+    // Prevents orphaned children/parents pointing to deleted therapist doc.
+    // Directus prod_locked_decisions ID TBD (THERAPIST_NO_CLIENT_DELETE).
+    match /therapists/{therapistId} {
+      allow read, update: if isOwner(therapistId);
+    }
+
+    // ─── parents/{parentId} ────────────────────────────────────────
+    // CDM: Parent = own doc read/write
+    // CDM: Therapist = linked parent read only
+    // CDM: Child = no access
+    //
+    // F2 FIX: Therapist can ONLY read parents where parent.linkedTherapist
+    // matches the therapist's UID. Multi-therapist families: each child links
+    // independently. Parent doc's linkedTherapist = first/primary therapist.
+    // Child-level isolation handles the rest.
+
+    match /parents/{parentId} {
+      allow read, write: if isOwner(parentId);
+
+      // Therapist can read ONLY their linked parents
+      allow read: if isAuthenticated()
+        && isTherapist()
+        && resource.data.linkedTherapist == request.auth.uid;
+    }
+
+    // ─── children/{childId} ────────────────────────────────────────
+    // CDM: Therapist = read all linked children. Write preferredTechniques only.
+    // CDM: Parent = read/write game state on own linked children.
+    // CDM: Child = no direct auth (via parent device).
+    //
+    // F11 FIX: Parent CANNOT write notification tracking fields (Cloud Function only).
+    //
+    // F15: COPPA enforcement — chatEnabled requires parent coppaChatConsent.
+    // This is ONE layer of COPPA compliance. Separate from: COPPA-compliant
+    // parental consent verification at signup (product/legal flow, not Firestore rules).
+    // Both are needed. Neither replaces the other.
+
+    match /children/{childId} {
+      // Parent can read their linked child
+      allow read: if isAuthenticated() && isChildsParent(childId);
+
+      // BS1b FIX: Parent can CREATE a new child doc during invite claim flow.
+      // Required fields enforced: linkedParent must be the creating parent,
+      // linkedTherapist and displayName must be present.
+      allow create: if isAuthenticated()
+        && isParent()
+        && request.resource.data.linkedParent == request.auth.uid
+        && request.resource.data.linkedTherapist != null
+        && request.resource.data.displayName != null;
+
+      // Parent can UPDATE their linked child — with two gates:
+      // 1. Cannot touch protected fields (notification tracking)
+      // 2. Cannot set chatEnabled=true without parent coppaChatConsent
+      allow update: if isAuthenticated()
+        && isChildsParent(childId)
+        && !parentWriteTouchesProtectedFields()
+        && (
+          !request.resource.data.chatEnabled
+          || get(/databases/$(database)/documents/parents/$(request.auth.uid)).data.coppaChatConsent == true
+        );
+
+      // Therapist can read linked children
+      allow read: if isAuthenticated() && isChildsTherapist(childId);
+
+      // Therapist can write ONLY preferredTechniques on linked children
+      allow update: if isAuthenticated()
+        && isChildsTherapist(childId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['preferredTechniques']);
+
+      // ─── children/{childId}/bars/{barId} ───────────────────────
+      // CDM: Therapist = linked children read
+      // CDM: Parent = own linked children read/create/update (NO delete)
+      //
+      // BS3 FIX: Split write into create + update. Delete is NOT allowed.
+      // Bar deletion mid-progress would corrupt game state (activeBarId
+      // points to nothing). If "reset progress" is needed, use a Cloud Function.
+
+      // BS3 prophylactic consistency: bars and completionLog rules include the
+      // same parentWriteTouchesProtectedFields() check as the child doc.
+      // Currently safe (module completion never touches protected fields),
+      // but this closes the divergence gap if a future bug accidentally writes
+      // a protected field during a batch. All documents in the completion batch
+      // now have identical rule gates → guaranteed all-pass or all-fail.
+
+      match /bars/{barId} {
+        allow read: if isAuthenticated() && isChildsParent(childId);
+        allow create, update: if isAuthenticated()
+          && isChildsParent(childId)
+          && !parentWriteTouchesProtectedFields();
+        allow read: if isAuthenticated() && isChildsTherapist(childId);
+      }
+
+      // ─── children/{childId}/completionLog/{logId} ──────────────
+      // CDM: Therapist = linked children read
+      // CDM table says "Parent: No access" — but module completion needs
+      // client-side create for MVP (no Cloud Functions yet).
+
+      match /completionLog/{logId} {
+        allow create: if isAuthenticated()
+          && isChildsParent(childId)
+          && !parentWriteTouchesProtectedFields();
+        allow read: if isAuthenticated() && isChildsTherapist(childId);
+      }
+    }
+
+    // ─── modules/{moduleId} ────────────────────────────────────────
+    // CDM: All authenticated users = read published only
+    // Write: admin/Cloud Functions only
+
+    match /modules/{moduleId} {
+      allow read: if isAuthenticated()
+        && resource.data.status == 'published';
+    }
+
+    // ─── narrativeEvents/{eventId} ─────────────────────────────────
+    // F8 FIX: NO CLIENT READ RULES.
+    // Narrative engine runs server-side (Cloud Functions with Admin SDK).
+    // Client never queries this collection. Spell Road uses modules only.
+    // No match rule = default deny for all clients.
+
+    // ─── arcDefinitions/{arcId} ────────────────────────────────────
+    // F9 FIX: NO CLIENT READ RULES.
+    // Same rationale as narrativeEvents — server-side only.
+    // No match rule = default deny for all clients.
+
+    // ─── storeItems/{itemId} ───────────────────────────────────────
+    // All authenticated users: read only (static catalog)
+    // Write: admin/Cloud Functions only
+
+    match /storeItems/{itemId} {
+      allow read: if isAuthenticated();
+    }
+
+    // ─── therapistInvites/{inviteCode} ─────────────────────────────
+    // CDM: Therapist = own invites read/write
+    // CDM: Parent = claim by code, read/write status
+    // CDM: Child = no access
+    //
+    // BS4 FIX: Invite codes MUST be UUID v4 format (122-bit entropy).
+    // Generated server-side only (Cloud Function or Admin SDK).
+    // Format validated on create to prevent sequential/guessable codes.
+    //
+    // BS1a FIX: Parent can only claim invites with status == 'active'.
+    // Prevents race condition where two parents claim the same code.
+
+    match /therapistInvites/{inviteCode} {
+      // BS4: Validate UUID v4 format on create
+      // Therapist can create new invites (server-generated UUID code)
+      allow create: if isAuthenticated()
+        && request.resource.data.therapistId == request.auth.uid
+        && inviteCode.matches('[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}');
+
+      // Therapist can read/write their own invites
+      allow read, write: if isAuthenticated()
+        && resource.data.therapistId == request.auth.uid;
+
+      // Parent can read any invite (needed for code lookup during claim flow)
+      allow read: if isAuthenticated() && isParent();
+
+      // BS1a FIX: Parent can claim ONLY active invites (prevents race condition)
+      allow update: if isAuthenticated()
+        && isParent()
+        && resource.data.status == 'active'
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'claimedByParent', 'childId', 'claimedAt']);
+    }
+  }
+}

@@ -1,0 +1,29 @@
+# MindfulNest — First Maestro Flow
+# Layer 4: Regression testing — home screen baseline
+# Source: APP_DEV_AUTOMATION_ARCHITECTURE_v1.md (Layer 4 specification)
+#
+# Run: maestro test maestro/flows/home_screen.yaml
+# Output: Screenshots saved to ~/.maestro/screenshots/
+
+appId: com.mindfulnest.app
+---
+- launchApp
+
+# Verify home screen loaded
+- assertVisible: "Everdale Map"
+- assertVisible:
+    text: "Stage 1 Scaffold.*Placeholder"
+
+# Verify all 6 creatures are listed
+- assertVisible: "M1 Tessa"
+- assertVisible: "M2 Luna"
+- assertVisible: "M4 Ember"
+- assertVisible: "M6 Bramble"
+- assertVisible: "M3 Benson"
+- assertVisible: "M5 Mo"
+
+# Verify navigation button exists
+- assertVisible: "Tap Creature"
+
+# Capture baseline screenshot
+- takeScreenshot: home_screen_baseline

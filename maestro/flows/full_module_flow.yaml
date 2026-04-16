@@ -1,0 +1,48 @@
+# MindfulNest — Full Module Navigation Flow
+# Layer 4: Regression testing — complete 7-screen navigation
+# Tests the flow: map → intro → phase_a → phase_b → resolution → win → decoration → map
+#
+# Run: maestro test maestro/flows/full_module_flow.yaml
+
+appId: com.mindfulnest.app
+---
+- launchApp
+
+# Screen 1: Map
+- assertVisible: "Everdale Map"
+- takeScreenshot: flow_01_map
+- tapOn: "Tap Creature"
+
+# Screen 2: Intro (The Call)
+- assertVisible: "The Call"
+- takeScreenshot: flow_02_intro
+- tapOn: "Continue to Buy-In"
+
+# Screen 3: Phase A (Buy-In + Demo)
+- assertVisible: "Buy-In + Phase A"
+- takeScreenshot: flow_03_phase_a
+- tapOn: "Begin Phase B"
+
+# Screen 4: Phase B (Guided Meditation)
+- assertVisible: "Phase B"
+- takeScreenshot: flow_04_phase_b
+- tapOn: "Continue to Resolution"
+
+# Screen 5: Resolution (The Rescue)
+- assertVisible: "The Rescue"
+- takeScreenshot: flow_05_resolution
+- tapOn: "Continue to Win"
+
+# Screen 6: Win
+- assertVisible: "Module Complete"
+- takeScreenshot: flow_06_win
+- tapOn: "Go to My Space"
+
+# Screen 7: Decoration
+- assertVisible: "My Space"
+- takeScreenshot: flow_07_decoration
+- tapOn: "Return to Map"
+
+# Back to Map — verify full cycle
+- assertVisible: "Everdale Map"
+- takeScreenshot: flow_08_back_to_map
