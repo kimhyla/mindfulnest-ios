@@ -3,10 +3,10 @@ import { Link } from "expo-router";
 
 export default function WinScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Module Complete!</Text>
-      <Text style={styles.subtitle}>Stage 1 Scaffold — Placeholder</Text>
-      <Text style={styles.description}>
+    <View style={styles.container} testID="win_screen">
+      <Text style={styles.title} testID="win_title">Module Complete!</Text>
+      <Text style={styles.subtitle} testID="win_subtitle">Stage 1 Scaffold — Placeholder</Text>
+      <Text style={styles.description} testID="win_description">
         Coins awarded. Spell learned and added to Spell Book.
         Rune stone glows. Tomorrow hook queued.
         Decoration reward always earned.
@@ -14,8 +14,8 @@ export default function WinScreen() {
       </Text>
 
       <Link href="/decoration" asChild>
-        <Pressable style={styles.button}>
-          <Text style={styles.buttonText}>Go to My Space</Text>
+        <Pressable style={styles.button} testID="win_continue_button">
+          <Text style={styles.buttonText} testID="win_continue_button_text">Go to My Space</Text>
         </Pressable>
       </Link>
     </View>

@@ -3,10 +3,10 @@ import { Link } from "expo-router";
 
 export default function ResolutionScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>The Rescue — Resolution Video</Text>
-      <Text style={styles.subtitle}>Stage 1 Scaffold — Placeholder</Text>
-      <Text style={styles.description}>
+    <View style={styles.container} testID="resolution_screen">
+      <Text style={styles.title} testID="resolution_title">The Rescue — Resolution Video</Text>
+      <Text style={styles.subtitle} testID="resolution_subtitle">Stage 1 Scaffold — Placeholder</Text>
+      <Text style={styles.description} testID="resolution_description">
         Full narrative video — equal or longer than the Intro video.
         The creature is rescued. Domain-specific visual effect plays
         (storm clearing, flowers blooming, etc.). Child watches the
@@ -14,8 +14,8 @@ export default function ResolutionScreen() {
       </Text>
 
       <Link href="/win" asChild>
-        <Pressable style={styles.button}>
-          <Text style={styles.buttonText}>Continue to Win</Text>
+        <Pressable style={styles.button} testID="resolution_continue_button">
+          <Text style={styles.buttonText} testID="resolution_continue_button_text">Continue to Win</Text>
         </Pressable>
       </Link>
     </View>

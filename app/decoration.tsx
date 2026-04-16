@@ -3,18 +3,18 @@ import { Link } from "expo-router";
 
 export default function DecorationScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>My Space — Decoration</Text>
-      <Text style={styles.subtitle}>Stage 1 Scaffold — Placeholder</Text>
-      <Text style={styles.description}>
+    <View style={styles.container} testID="decoration_screen">
+      <Text style={styles.title} testID="decoration_title">My Space — Decoration</Text>
+      <Text style={styles.subtitle} testID="decoration_subtitle">Stage 1 Scaffold — Placeholder</Text>
+      <Text style={styles.description} testID="decoration_description">
         Child is taken to MyHouse or the Carriage (based on lastCarouselPage).
         Place decorations, admire items, explore the space.
         Leave when ready to return to the map.
       </Text>
 
       <Link href="/" asChild>
-        <Pressable style={styles.button}>
-          <Text style={styles.buttonText}>Return to Map</Text>
+        <Pressable style={styles.button} testID="decoration_return_button">
+          <Text style={styles.buttonText} testID="decoration_return_button_text">Return to Map</Text>
         </Pressable>
       </Link>
     </View>

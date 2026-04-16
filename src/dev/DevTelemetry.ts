@@ -129,7 +129,10 @@ export function initDevTelemetry(): void {
 // Metro bundles this file; when imported, this block runs immediately.
 // Ensures globals are set before any Chrome MCP reads attempt.
 if (__DEV__ && Platform.OS === "web" && typeof window !== "undefined") {
-  (window as any).__MINDFULNEST_DEV__ = {
+  // Type-safe assignment — no `any` cast needed because the Window global
+  // interface is extended at the top of this file (search: `declare global`).
+  // Removing the __DEV__ guard above would now be caught by TypeScript strict mode.
+  window.__MINDFULNEST_DEV__ = {
     version: "1.0.0",
     state: DEFAULT_STATE,
     health: { status: "ok", platform: "web", devMode: true },

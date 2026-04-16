@@ -15,35 +15,35 @@ export default function MapScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Everdale Map</Text>
-      <Text style={styles.subtitle}>Stage 1 Scaffold — Placeholder</Text>
+    <View style={styles.container} testID="map_screen">
+      <Text style={styles.title} testID="map_title">Everdale Map</Text>
+      <Text style={styles.subtitle} testID="map_subtitle">Stage 1 Scaffold — Placeholder</Text>
 
       {/* DEV-ONLY: Telemetry status banner — proves Layer 3 is working */}
       {__DEV__ && telemetry && (
-        <View style={styles.telemetryBanner}>
-          <Text style={styles.telemetryTitle}>Layer 3 Telemetry: ACTIVE</Text>
-          <Text style={styles.telemetryText}>
+        <View style={styles.telemetryBanner} testID="map_telemetry_banner">
+          <Text style={styles.telemetryTitle} testID="map_telemetry_title">Layer 3 Telemetry: ACTIVE</Text>
+          <Text style={styles.telemetryText} testID="map_telemetry_version">
             v{telemetry.version} | {telemetry.health.platform} | devMode={String(telemetry.health.devMode)}
           </Text>
-          <Text style={styles.telemetryText}>
+          <Text style={styles.telemetryText} testID="map_telemetry_state">
             screen={telemetry.state.currentScreen} | coins={telemetry.state.coinBalance} | stones={telemetry.state.stonesCollected.length}
           </Text>
         </View>
       )}
 
-      <View style={styles.creaturesContainer}>
-        <Text style={styles.sectionLabel}>Creatures</Text>
-        <Text style={styles.creature}>M1 Tessa — Body Stone (Orange)</Text>
-        <Text style={styles.creature}>M2 Luna — Watching Stone (Yellow)</Text>
-        <Text style={styles.creature}>M4 Ember — Heart Stone (Red)</Text>
-        <Text style={styles.creature}>M6 Bramble — Calm Stone (Blue)</Text>
-        <Text style={styles.creature}>M3 Benson — Courage Stone (Green)</Text>
-        <Text style={styles.creature}>M5 Mo — Grounding Stone (Purple)</Text>
+      <View style={styles.creaturesContainer} testID="map_creatures_container">
+        <Text style={styles.sectionLabel} testID="map_creatures_label">Creatures</Text>
+        <Text style={styles.creature} testID="map_creature_tessa">M1 Tessa — Body Stone (Orange)</Text>
+        <Text style={styles.creature} testID="map_creature_luna">M2 Luna — Watching Stone (Yellow)</Text>
+        <Text style={styles.creature} testID="map_creature_ember">M4 Ember — Heart Stone (Red)</Text>
+        <Text style={styles.creature} testID="map_creature_bramble">M6 Bramble — Calm Stone (Blue)</Text>
+        <Text style={styles.creature} testID="map_creature_benson">M3 Benson — Courage Stone (Green)</Text>
+        <Text style={styles.creature} testID="map_creature_mo">M5 Mo — Grounding Stone (Purple)</Text>
       </View>
 
       <Link href="/intro" asChild>
-        <Pressable style={styles.button}>
+        <Pressable style={styles.button} testID="map_start_module_button">
           <Text style={styles.buttonText}>Tap Creature (Start Module)</Text>
         </Pressable>
       </Link>

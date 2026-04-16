@@ -1,48 +1,66 @@
-# MindfulNest — Full Module Navigation Flow
+# MindfulNest — Full Module Navigation Flow (testID-based)
 # Layer 4: Regression testing — complete 7-screen navigation
-# Tests the flow: map → intro → phase_a → phase_b → resolution → win → decoration → map
+# Tests flow: map → intro → phase_a → phase_b → resolution → win → decoration → map
+# Updated: April 16, 2026 — switched from text: to id: selectors per Directus decision 118
 #
 # Run: maestro test maestro/flows/full_module_flow.yaml
 
 appId: com.mindfulnest.app
 ---
 - launchApp
+- waitForAnimationToEnd:
+    timeout: 5000
 
 # Screen 1: Map
-- assertVisible: "Everdale Map"
+- assertVisible:
+    id: map_screen
 - takeScreenshot: flow_01_map
-- tapOn: "Tap Creature"
+- tapOn:
+    id: map_start_module_button
 
 # Screen 2: Intro (The Call)
-- assertVisible: "The Call"
+- assertVisible:
+    id: intro_screen
 - takeScreenshot: flow_02_intro
-- tapOn: "Continue to Buy-In"
+- tapOn:
+    id: intro_continue_button
 
 # Screen 3: Phase A (Buy-In + Demo)
-- assertVisible: "Buy-In + Phase A"
+- assertVisible:
+    id: phase_a_screen
 - takeScreenshot: flow_03_phase_a
-- tapOn: "Begin Phase B"
+- tapOn:
+    id: phase_a_continue_button
 
 # Screen 4: Phase B (Guided Meditation)
-- assertVisible: "Phase B"
+- assertVisible:
+    id: phase_b_screen
 - takeScreenshot: flow_04_phase_b
-- tapOn: "Continue to Resolution"
+- tapOn:
+    id: phase_b_continue_button
 
 # Screen 5: Resolution (The Rescue)
-- assertVisible: "The Rescue"
+- assertVisible:
+    id: resolution_screen
 - takeScreenshot: flow_05_resolution
-- tapOn: "Continue to Win"
+- tapOn:
+    id: resolution_continue_button
 
 # Screen 6: Win
-- assertVisible: "Module Complete"
+- assertVisible:
+    id: win_screen
 - takeScreenshot: flow_06_win
-- tapOn: "Go to My Space"
+- tapOn:
+    id: win_continue_button
 
 # Screen 7: Decoration
-- assertVisible: "My Space"
+- assertVisible:
+    id: decoration_screen
 - takeScreenshot: flow_07_decoration
-- tapOn: "Return to Map"
+- tapOn:
+    id: decoration_return_button
 
 # Back to Map — verify full cycle
-- assertVisible: "Everdale Map"
+- assertVisible:
+    id: map_screen
 - takeScreenshot: flow_08_back_to_map

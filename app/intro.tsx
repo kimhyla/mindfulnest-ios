@@ -3,16 +3,16 @@ import { Link } from "expo-router";
 
 export default function IntroScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>The Call — Intro Video</Text>
-      <Text style={styles.subtitle}>Stage 1 Scaffold — Placeholder</Text>
-      <Text style={styles.description}>
+    <View style={styles.container} testID="intro_screen">
+      <Text style={styles.title} testID="intro_title">The Call — Intro Video</Text>
+      <Text style={styles.subtitle} testID="intro_subtitle">Stage 1 Scaffold — Placeholder</Text>
+      <Text style={styles.description} testID="intro_description">
         Narrative scene plays. The creature is in trouble.
         Guide Bird explains the situation. Child sees what is happening.
       </Text>
 
       <Link href="/phase_a" asChild>
-        <Pressable style={styles.button}>
+        <Pressable style={styles.button} testID="intro_continue_button">
           <Text style={styles.buttonText}>Continue to Buy-In + Phase A</Text>
         </Pressable>
       </Link>

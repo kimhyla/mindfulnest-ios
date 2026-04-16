@@ -3,17 +3,17 @@ import { Link } from "expo-router";
 
 export default function PhaseAScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Buy-In + Phase A</Text>
-      <Text style={styles.subtitle}>Stage 1 Scaffold — Placeholder</Text>
-      <Text style={styles.description}>
+    <View style={styles.container} testID="phase_a_screen">
+      <Text style={styles.title} testID="phase_a_title">Buy-In + Phase A</Text>
+      <Text style={styles.subtitle} testID="phase_a_subtitle">Stage 1 Scaffold — Placeholder</Text>
+      <Text style={styles.description} testID="phase_a_description">
         Guide Bird gets the child excited about the technique (Buy-In).
         Then shows them what they are about to do (Phase A demo).
         One visual demo, brief narration, done.
       </Text>
 
       <Link href="/phase_b" asChild>
-        <Pressable style={styles.button}>
+        <Pressable style={styles.button} testID="phase_a_continue_button">
           <Text style={styles.buttonText}>Begin Phase B</Text>
         </Pressable>
       </Link>

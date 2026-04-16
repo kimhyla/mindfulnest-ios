@@ -1,6 +1,8 @@
-# MindfulNest — First Maestro Flow
+# MindfulNest — First Maestro Flow (testID-based)
 # Layer 4: Regression testing — home screen baseline
 # Source: APP_DEV_AUTOMATION_ARCHITECTURE_v1.md (Layer 4 specification)
+# Updated: April 16, 2026 — switched from text: to id: selectors per Directus decision 118
+#          (text-based selectors fail on iOS 26.4 due to RN accessibility tree bug)
 #
 # Run: maestro test maestro/flows/home_screen.yaml
 # Output: Screenshots saved to ~/.maestro/screenshots/
@@ -8,22 +10,32 @@
 appId: com.mindfulnest.app
 ---
 - launchApp
+- waitForAnimationToEnd:
+    timeout: 5000
 
 # Verify home screen loaded
-- assertVisible: "Everdale Map"
 - assertVisible:
-    text: "Stage 1 Scaffold.*Placeholder"
+    id: map_screen
+- assertVisible:
+    id: map_title
 
 # Verify all 6 creatures are listed
-- assertVisible: "M1 Tessa"
-- assertVisible: "M2 Luna"
-- assertVisible: "M4 Ember"
-- assertVisible: "M6 Bramble"
-- assertVisible: "M3 Benson"
-- assertVisible: "M5 Mo"
+- assertVisible:
+    id: map_creature_tessa
+- assertVisible:
+    id: map_creature_luna
+- assertVisible:
+    id: map_creature_ember
+- assertVisible:
+    id: map_creature_bramble
+- assertVisible:
+    id: map_creature_benson
+- assertVisible:
+    id: map_creature_mo
 
 # Verify navigation button exists
-- assertVisible: "Tap Creature"
+- assertVisible:
+    id: map_start_module_button
 
 # Capture baseline screenshot
 - takeScreenshot: home_screen_baseline

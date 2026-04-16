@@ -3,17 +3,17 @@ import { Link } from "expo-router";
 
 export default function PhaseBScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Phase B — Guided Meditation</Text>
-      <Text style={styles.subtitle}>Stage 1 Scaffold — Placeholder</Text>
-      <Text style={styles.description}>
+    <View style={styles.container} testID="phase_b_screen">
+      <Text style={styles.title} testID="phase_b_title">Phase B — Guided Meditation</Text>
+      <Text style={styles.subtitle} testID="phase_b_subtitle">Stage 1 Scaffold — Placeholder</Text>
+      <Text style={styles.description} testID="phase_b_description">
         The child closes their eyes. Myrrhin narrates.
         Breathing circle syncs to audio cues.
       </Text>
 
       <Link href="/resolution" asChild>
-        <Pressable style={styles.button}>
-          <Text style={styles.buttonText}>Continue to Resolution</Text>
+        <Pressable style={styles.button} testID="phase_b_continue_button">
+          <Text style={styles.buttonText} testID="phase_b_continue_button_text">Continue to Resolution</Text>
         </Pressable>
       </Link>
     </View>
