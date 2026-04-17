@@ -1,10 +1,14 @@
 import { useEffect } from "react";
 import { Stack } from "expo-router";
-import { initDevTelemetry } from "../src/dev/DevTelemetry";
 
 export default function RootLayout() {
   useEffect(() => {
     if (__DEV__) {
+      // Conditional require so Metro DCEs the entire DevTelemetry module from
+      // production bundles. Top-level ES import would survive tree-shaking.
+      // typeof import(...) is a type-only expression (Babel-erased) preserving strict-mode types.
+      const { initDevTelemetry } =
+        require("../src/dev/DevTelemetry") as typeof import("../src/dev/DevTelemetry");
       initDevTelemetry();
     }
   }, []);
