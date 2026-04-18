@@ -26,6 +26,9 @@ const TEXT_FIELDS_BY_COLLECTION: Record<CollectionName, readonly string[]> = {
   coach_conversations: [],
   stripe_customers: [],
   commission_events: [],
+  // CF-only write; sanitizeAgainstSchema is never called on it, but keys
+  // must exhaustively cover CollectionName.
+  therapist_summaries: [],
 };
 
 export function sanitizeAgainstSchema(

@@ -17,3 +17,12 @@ export { sanitizeWishingGardenStaging } from './triggers/firestore/sanitizeWishi
 // S3-AUTH-firebase (preflight 66, server-side piece):
 export { onParentSignup } from './triggers/auth/onParentSignup';
 export { claimTherapistInvite } from './triggers/https/claimTherapistInvite';
+
+// S3-CF-therapist-summary (preflight 69, LD-165 pre-computed summary):
+export {
+  summaryOnZapsWritten,
+  summaryOnWishingGardenWritten,
+  summaryOnSessionsWritten,
+  summaryOnClqWritten,
+  summaryOnGprWritten,
+} from './triggers/firestore/recomputeTherapistSummary';
