@@ -13,7 +13,9 @@
     "lint": "eslint 'src/**/*.ts' --max-warnings 0",
     "lint:fix": "eslint 'src/**/*.ts' --fix",
     "clean": "rm -rf lib",
-    "serve": "npm run build && firebase emulators:start --only functions"
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "gen:schema-lists": "node scripts/gen-schema-lists.mjs",
+    "test": "node --import tsx --test 'src/**/__tests__/*.test.ts'"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",
@@ -24,6 +26,7 @@
     "@typescript-eslint/eslint-plugin": "^8.58.2",
     "@typescript-eslint/parser": "^8.58.2",
     "eslint": "^9.39.4",
+    "tsx": "^4.19.2",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.58.2"
   }

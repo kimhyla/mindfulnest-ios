@@ -39,6 +39,12 @@ jobs:
         run: npm run build
       - name: Verify build output exists
         run: test -f lib/index.js
+      - name: Unit tests (node --test)
+        run: npm test
+      - name: Verify generated schema lists are fresh
+        run: |
+          node scripts/gen-schema-lists.mjs
+          git diff --exit-code src/schema/firestore-allowlists.generated.ts
 
   deploy-dry-run:
     name: firebase deploy --only functions --dry-run
