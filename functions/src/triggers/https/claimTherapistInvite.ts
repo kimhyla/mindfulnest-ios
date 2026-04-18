@@ -18,7 +18,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { isValidInviteCode, evaluateInviteForClaim, type InviteDoc } from '../../lib/invite/validateInviteCode';
-import { writeAuditEntry } from '../../lib/audit/log';
+import { writeAudit } from '../../lib/audit/log';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -81,12 +81,16 @@ export const claimTherapistInvite = onCall(
     // Client MUST call getIdToken(true) to refresh the token with the new claim.
     await getAuth().setCustomUserClaims(uid, { role: 'therapist' });
 
-    await writeAuditEntry(db, {
-      actor: uid,
-      action: 'therapist_invite_claimed',
-      collection: 'therapistInvites',
-      docId: code,
-    });
+    await writeAudit(
+      { kind: 'db', db },
+      {
+        actor: uid,
+        action: 'therapist_invite_claimed',
+        collection: 'therapistInvites',
+        docId: code,
+        childId: null, // therapist-scoped, no child context yet
+      },
+    );
 
     return { ok: true, message: 'Refresh your token with getIdToken(true).' };
   },
