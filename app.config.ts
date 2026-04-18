@@ -45,5 +45,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ],
   extra: {
     devTelemetryEnabled: !isProduction,
+    eas: {
+      projectId: "d9b5e6fc-0474-44f4-89db-383437542bc4",
+    },
   },
+  owner: "kimhyla11",
 });
