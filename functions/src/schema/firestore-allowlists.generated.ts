@@ -1,5 +1,5 @@
 // GENERATED — DO NOT EDIT.
-// source: content-lockfiles/firestore_schema.json sha256=f55443219108300151f64215ccbff663d55ceb9947e6591a7ac24693ebc00974
+// source: content-lockfiles/firestore_schema.json sha256=cdd269d167c2c2eaa7365dc9e216e2bf4c2f1f265cb8733a79c525e135a048e9
 // Regenerate via: node functions/scripts/gen-schema-lists.mjs
 
 export interface CollectionFieldLists {
@@ -18,6 +18,7 @@ export type CollectionName =
   | "parents"
   | "sessions"
   | "stripe_customers"
+  | "therapist_summaries"
   | "therapists"
   | "wishing_garden_entries"
   | "zaps";
@@ -67,6 +68,11 @@ export const FIRESTORE_FIELD_LISTS: Readonly<Record<CollectionName, CollectionFi
     allowlist: ["email", "stripeId", "stripeLink"],
     forbidden: [],
     required: [],
+  },
+  "therapist_summaries": {
+    allowlist: ["_last_source", "active_this_week", "activity_bucket", "childId", "clq_latest_at_bucket", "clq_latest_score", "garden_30d", "gpr_active_goal_count", "gpr_avg_7d", "sessions_30d", "updated_at", "zaps_30d", "zaps_7d"],
+    forbidden: ["clq_responses_inline", "content_preview", "gpr_deltas_inline", "last_entry_at", "last_session_at", "last_zap_at", "message_preview", "per_day_distribution", "per_hour_distribution"],
+    required: ["activity_bucket", "childId", "updated_at"],
   },
   "therapists": {
     allowlist: ["created_at", "deactivatedAt", "deactivationReason", "displayName", "email", "rewardful_affiliate_id", "status"],

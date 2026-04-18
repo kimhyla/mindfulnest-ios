@@ -1,43 +1,86 @@
 {
-  "$comment": "MindfulNest Firestore schema lockfile — authoritative type source for both Lovable dashboard repos per LD-185. Covers 12 collections per LD-188.",
+  "$comment": "MindfulNest Firestore schema lockfile \u2014 authoritative type source for both Lovable dashboard repos per LD-185. Covers 12 collections per LD-188.",
   "_meta": {
     "schema_version": 1,
     "locked": "2026-04-18",
     "locked_by": "Wave B2 WB-C8-json",
-    "ld_refs": ["LD-185 DASHBOARD_ARCH_TWO_REPOS_SHARED_SCHEMA", "LD-188 FIRESTORE_SCHEMA_LOCKFILE_COVERS_12_COLLECTIONS", "LD-225 COPPA_DATA_MINIMIZATION", "LD-226 COPPA_PARENT_CHILD_NESTING_REQUIRED", "LD-216 COPPA_VPC_VIA_KWS_ONLY"],
-    "notes": "Field allowlists align with firestore.rules v5 COPPA hardening. Dashboard repos regenerate TypeScript types from this file at build time via scripts/generate-types.ts. CI rejects drift."
+    "ld_refs": [
+      "LD-185 DASHBOARD_ARCH_TWO_REPOS_SHARED_SCHEMA",
+      "LD-188 FIRESTORE_SCHEMA_LOCKFILE_COVERS_12_COLLECTIONS",
+      "LD-225 COPPA_DATA_MINIMIZATION",
+      "LD-226 COPPA_PARENT_CHILD_NESTING_REQUIRED",
+      "LD-216 COPPA_VPC_VIA_KWS_ONLY"
+    ],
+    "notes": "Field allowlists align with firestore.rules v5 COPPA hardening. Dashboard repos regenerate TypeScript types from this file at build time via scripts/generate-types.ts. CI rejects drift. 2026-04-18: added therapist_summaries for S3-CF-therapist-summary (preflight 69)."
   },
   "collections": {
     "children": {
       "description": "COPPA-regulated child records. Parent-scoped. Accessed via parent auth only.",
       "parent_collection": "parents",
       "parent_fk": "linkedParent",
-      "required_fields": ["linkedParent", "linkedTherapist", "displayName", "parental_consent_verified", "parental_consent_source", "kws_parent_id"],
+      "required_fields": [
+        "linkedParent",
+        "linkedTherapist",
+        "displayName",
+        "parental_consent_verified",
+        "parental_consent_source",
+        "kws_parent_id"
+      ],
       "allowlist_fields": [
-        "linkedParent", "linkedTherapist", "displayName",
-        "date_of_birth", "gender",
-        "current_module_id", "current_phase", "current_checkpoint_id",
+        "linkedParent",
+        "linkedTherapist",
+        "displayName",
+        "date_of_birth",
+        "gender",
+        "current_module_id",
+        "current_phase",
+        "current_checkpoint_id",
         "voice_cache_ids",
-        "parental_consent_verified", "parental_consent_source", "kws_parent_id",
-        "consent_status", "consent_scope",
-        "last_session_timestamp", "retention_clock_started_at",
-        "created_at", "updated_at",
-        "preferredTechniques", "chatEnabled",
-        "parentNotifiedSkills", "therapistFirstCompletionNotified", "inactivityNotifiedAt",
-        "totalSessions", "sessionsThisWeek", "domainSessionCounts",
-        "completions", "lastActivityAt", "engagementStatus", "weekStartDate"
+        "parental_consent_verified",
+        "parental_consent_source",
+        "kws_parent_id",
+        "consent_status",
+        "consent_scope",
+        "last_session_timestamp",
+        "retention_clock_started_at",
+        "created_at",
+        "updated_at",
+        "preferredTechniques",
+        "chatEnabled",
+        "parentNotifiedSkills",
+        "therapistFirstCompletionNotified",
+        "inactivityNotifiedAt",
+        "totalSessions",
+        "sessionsThisWeek",
+        "domainSessionCounts",
+        "completions",
+        "lastActivityAt",
+        "engagementStatus",
+        "weekStartDate"
       ],
       "forbidden_fields": [
-        "last_name", "school", "address", "phone",
-        "childEmail", "child_email", "email",
-        "ip_address", "ip_logs", "device_id", "device_fingerprint",
-        "photo_url", "avatar_image",
+        "last_name",
+        "school",
+        "address",
+        "phone",
+        "childEmail",
+        "child_email",
+        "email",
+        "ip_address",
+        "ip_logs",
+        "device_id",
+        "device_fingerprint",
+        "photo_url",
+        "avatar_image",
         "chosen_guide_name",
-        "clinical_notes", "diagnosis", "clq_score", "gpr_score"
+        "clinical_notes",
+        "diagnosis",
+        "clq_score",
+        "gpr_score"
       ],
       "field_types": {
-        "linkedParent": "string (FK → parents.id)",
-        "linkedTherapist": "string (FK → therapists.id) | nullable",
+        "linkedParent": "string (FK \u2192 parents.id)",
+        "linkedTherapist": "string (FK \u2192 therapists.id) | nullable",
         "displayName": "string (first name only)",
         "date_of_birth": "ISO date string (derive age at read)",
         "gender": "'boy' | 'girl' (per LD CONTENT_BINARY_GENDER_ONLY)",
@@ -58,11 +101,15 @@
     },
     "parents": {
       "description": "COPPA-verified parent accounts. Firebase Auth UID = parent doc ID.",
-      "required_fields": ["displayName", "email", "kws_parent_id"],
+      "required_fields": [
+        "displayName",
+        "email",
+        "kws_parent_id"
+      ],
       "field_types": {
         "displayName": "string",
         "email": "string",
-        "linkedTherapist": "string | null (FK → therapists.id, primary therapist)",
+        "linkedTherapist": "string | null (FK \u2192 therapists.id, primary therapist)",
         "coppaChatConsent": "boolean",
         "kws_parent_id": "string (non-empty; links to KWS portal)",
         "stripe_customer_id": "string | null",
@@ -71,7 +118,10 @@
     },
     "therapists": {
       "description": "Therapist (distributor) accounts. Firebase Auth UID = therapist doc ID.",
-      "required_fields": ["displayName", "email"],
+      "required_fields": [
+        "displayName",
+        "email"
+      ],
       "field_types": {
         "displayName": "string",
         "email": "string",
@@ -85,9 +135,13 @@
     "sessions": {
       "description": "Child session records. Parent/therapist-scoped read per linkedParent/linkedTherapist.",
       "parent_collection": "children",
-      "required_fields": ["childId", "startedAt", "endedAt"],
+      "required_fields": [
+        "childId",
+        "startedAt",
+        "endedAt"
+      ],
       "field_types": {
-        "childId": "string (FK → children.id)",
+        "childId": "string (FK \u2192 children.id)",
         "moduleId": "string",
         "phase": "string",
         "startedAt": "timestamp",
@@ -98,9 +152,13 @@
     "clq_responses": {
       "description": "CRI CLQ questionnaire responses. Child-scoped subcollection.",
       "parent_collection": "children",
-      "required_fields": ["childId", "administered_at", "administered_by"],
+      "required_fields": [
+        "childId",
+        "administered_at",
+        "administered_by"
+      ],
       "field_types": {
-        "childId": "string (FK → children.id)",
+        "childId": "string (FK \u2192 children.id)",
         "administered_at": "timestamp",
         "administered_by": "'therapist' | 'parent' | 'child'",
         "responses": "map<item_id, response>",
@@ -110,7 +168,10 @@
     "gpr_entries": {
       "description": "CRI GPR goal progress records. Child-scoped subcollection.",
       "parent_collection": "children",
-      "required_fields": ["childId", "recorded_at"],
+      "required_fields": [
+        "childId",
+        "recorded_at"
+      ],
       "field_types": {
         "childId": "string",
         "recorded_at": "timestamp",
@@ -122,7 +183,12 @@
     "zaps": {
       "description": "Child-authored messages to creatures. Sanitization-required (LD-171).",
       "parent_collection": "children",
-      "required_fields": ["childId", "creatureId", "content", "sent_at"],
+      "required_fields": [
+        "childId",
+        "creatureId",
+        "content",
+        "sent_at"
+      ],
       "field_types": {
         "childId": "string",
         "creatureId": "'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6'",
@@ -133,7 +199,10 @@
     "wishing_garden_entries": {
       "description": "Child-authored Wishing Garden contributions. Sanitization-required.",
       "parent_collection": "children",
-      "required_fields": ["childId", "created_at"],
+      "required_fields": [
+        "childId",
+        "created_at"
+      ],
       "field_types": {
         "childId": "string",
         "prompt": "string",
@@ -144,9 +213,12 @@
     "coach_conversations": {
       "description": "AI Parent Coach chat threads. Parent-scoped. Claude API backend per LD-87.",
       "parent_collection": "parents",
-      "required_fields": ["parentId", "created_at"],
+      "required_fields": [
+        "parentId",
+        "created_at"
+      ],
       "field_types": {
-        "parentId": "string (FK → parents.id)",
+        "parentId": "string (FK \u2192 parents.id)",
         "created_at": "timestamp",
         "messages": "array<{role, content, timestamp, model_used}>",
         "monthly_message_count": "number (soft-cap per Kim)"
@@ -163,7 +235,12 @@
     },
     "commission_events": {
       "description": "Therapist commission events (from Rewardful webhook per LD-206).",
-      "required_fields": ["therapistId", "parentId", "amount_cents", "event_at"],
+      "required_fields": [
+        "therapistId",
+        "parentId",
+        "amount_cents",
+        "event_at"
+      ],
       "field_types": {
         "therapistId": "string",
         "parentId": "string (triggering purchase)",
@@ -173,14 +250,66 @@
       }
     },
     "modules": {
-      "description": "Content catalog — arcs × creatures × techniques. Published-only read for authenticated users.",
-      "required_fields": ["id", "status"],
+      "description": "Content catalog \u2014 arcs \u00d7 creatures \u00d7 techniques. Published-only read for authenticated users.",
+      "required_fields": [
+        "id",
+        "status"
+      ],
       "field_types": {
         "id": "string (e.g., 'A1M1')",
         "arc": "number",
         "creature_m_number": "'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6'",
         "technique_name": "string",
         "status": "'draft' | 'published' | 'retired'"
+      }
+    },
+    "therapist_summaries": {
+      "description": "Pre-computed therapist dashboard summary per child (LD-165). CF-only writes via admin SDK; therapist read via isChildsTherapist. Document ID = childId. Shape is LD-225-compliant: bucketed counts + activity enum only, NO raw event timestamps (pattern-reveal defense per S3-CF-therapist-summary Phase 0 synthesis).",
+      "required_fields": [
+        "childId",
+        "updated_at",
+        "activity_bucket"
+      ],
+      "allowlist_fields": [
+        "childId",
+        "updated_at",
+        "zaps_7d",
+        "zaps_30d",
+        "garden_30d",
+        "sessions_30d",
+        "clq_latest_score",
+        "clq_latest_at_bucket",
+        "gpr_active_goal_count",
+        "gpr_avg_7d",
+        "active_this_week",
+        "activity_bucket",
+        "_last_source"
+      ],
+      "forbidden_fields": [
+        "last_zap_at",
+        "last_entry_at",
+        "last_session_at",
+        "content_preview",
+        "message_preview",
+        "clq_responses_inline",
+        "gpr_deltas_inline",
+        "per_day_distribution",
+        "per_hour_distribution"
+      ],
+      "field_types": {
+        "updated_at": "timestamp",
+        "zaps_7d": "integer",
+        "zaps_30d": "integer",
+        "garden_30d": "integer",
+        "sessions_30d": "integer",
+        "clq_latest_score": "number | nullable",
+        "clq_latest_at_bucket": "'this_week' | 'this_month' | 'older' | 'never'",
+        "gpr_active_goal_count": "integer",
+        "gpr_avg_7d": "number | nullable",
+        "active_this_week": "boolean",
+        "activity_bucket": "'today' | 'this_week' | 'older' | 'never'",
+        "_last_source": "string",
+        "childId": "string (FK \u2192 children.id)"
       }
     }
   }
