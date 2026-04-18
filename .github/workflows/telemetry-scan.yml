@@ -1,0 +1,98 @@
+# MindfulNest — Telemetry Leak Scan
+#
+# Blocks merge if dev-telemetry markers appear in the production web bundle.
+# Failure means __DEV__ / NODE_ENV guards were bypassed; see Directus blocker #3.
+
+name: Telemetry Leak Scan
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  telemetry-scan:
+    name: Scan production web bundle for dev-telemetry markers
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
+
+    steps:
+      # --- Environment verification (Blocker #9) ---
+
+      - name: Verify NODE_ENV is production
+        run: |
+          if [ "$NODE_ENV" != "production" ]; then
+            echo "::error::NODE_ENV is '$NODE_ENV', expected 'production'"
+            echo "The telemetry scan is only valid against a production build."
+            exit 1
+          fi
+          echo "NODE_ENV confirmed: $NODE_ENV"
+
+      # --- Checkout + toolchain ---
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --- Build phase ---
+
+      - name: Build production web bundle with Expo
+        run: |
+          rm -rf dist
+          npx expo export --platform web --output-dir dist
+
+      # --- Security scan (Blocker #3) ---
+
+      - name: Scan bundle for forbidden dev-telemetry markers
+        run: |
+          set -eo pipefail
+
+          FORBIDDEN_MARKERS=(
+            '__MINDFULNEST_DEV__'
+            'window.__MINDFULNEST_DEV__'
+            '[DevTelemetry]'
+            'initDevTelemetry'
+          )
+
+          if [ ! -d dist ]; then
+            echo "::error::dist/ directory missing — Expo build did not produce output"
+            exit 1
+          fi
+
+          FOUND=0
+          for marker in "${FORBIDDEN_MARKERS[@]}"; do
+            # -R recursive, -F fixed-string literal, -I skip binary, -n line number,
+            # --include restricts to text file types we actually ship.
+            matches=$(grep -RFI -n \
+              --include='*.js' \
+              --include='*.html' \
+              --include='*.map' \
+              -e "$marker" dist || true)
+            if [ -n "$matches" ]; then
+              echo "::error::Forbidden marker detected in production bundle: $marker"
+              echo "Match details (see also job artifact logs for full context):"
+              echo "$matches" | head -n 20
+              FOUND=1
+            fi
+          done
+
+          if [ "$FOUND" -eq 1 ]; then
+            echo ""
+            echo "::error::Telemetry scan failed. Dev-only code reached the production web bundle."
+            echo "Remediation: see Directus blocker #3 / locked decision LD-113."
+            exit 1
+          fi
+
+          echo "Telemetry scan passed — no forbidden markers found in dist/."

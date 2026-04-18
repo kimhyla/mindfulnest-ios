@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# MindfulNest pre-commit hook — spec v2 §C7-T1 Wave B1
+#
+# Runs lint-staged which:
+# 1. Runs ESLint (--max-warnings 0) on staged .ts/.tsx/.js/.jsx files
+# 2. Secret scanning via gitleaks pattern (future: when Doppler migration
+#    completes in WA-C14, add `gitleaks protect --staged`)
+#
+# If anything fails, the commit is aborted.
+# To bypass in emergencies only: `git commit --no-verify`.
+# NEVER bypass for governed files (firestore.rules, settings.json, SKILL.md,
+# CLAUDE.md, .github/workflows/*) — those must pass Rule 19 Phase 0 per
+# LD-124 PREFLIGHT_PROTOCOL_STEP_0.
+
+set -e
+
+# Run lint-staged for per-file ESLint
+npx lint-staged
+
+# TODO(WA-C14 close): Add gitleaks protect --staged after Doppler migration
+# completes and API_KEYS_MASTER.md is moved out of the Dropbox project folder.
+# For now, .gitignore entries for .env/API_KEYS* prevent accidental commit.

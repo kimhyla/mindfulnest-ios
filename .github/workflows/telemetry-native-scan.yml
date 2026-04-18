@@ -1,0 +1,145 @@
+# MindfulNest — Native Binary Telemetry Leak Scan (Layer 4)
+#
+# Per LD-157 DEV_TELEMETRY_AUTOLINKING_EXCLUSION_PATTERN Layer 4 (mandatory):
+# the production EAS .ipa MUST NOT contain native HTTP server symbols. This
+# workflow runs `eas build --profile production --local --platform ios` then
+# greps the resulting binary for symbols that would prove the autolinking
+# exclusion (LD-157 Layer 3) failed.
+#
+# Companion to telemetry-scan.yml (web bundle scan / Layer 4 for JS).
+#
+# Per LD-112 STAGE2_GATE_HTTP_ENDPOINT this scan is in-PR scope (NOT deferred
+# to Blocker #15). Failure FAILs the merge gate.
+
+name: Native Binary Telemetry Leak Scan
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "react-native.config.js"
+      - "app.config.ts"
+      - "app.config.js"
+      - "app.json"
+      - "plugins/**"
+      - "src/dev/**"
+      - "eas.json"
+      - ".github/workflows/telemetry-native-scan.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  native-binary-scan:
+    name: Scan production iOS .ipa for dev-telemetry native symbols
+    runs-on: macos-latest
+    env:
+      NODE_ENV: production
+      EAS_BUILD_PROFILE: production
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    steps:
+      - name: Verify gate env vars
+        run: |
+          if [ "$NODE_ENV" != "production" ]; then
+            echo "::error::NODE_ENV is '$NODE_ENV', expected 'production'"; exit 1
+          fi
+          if [ "$EAS_BUILD_PROFILE" != "production" ]; then
+            echo "::error::EAS_BUILD_PROFILE is '$EAS_BUILD_PROFILE', expected 'production'"; exit 1
+          fi
+          echo "Env confirmed: NODE_ENV=$NODE_ENV EAS_BUILD_PROFILE=$EAS_BUILD_PROFILE"
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install eas-cli
+        run: npm install -g eas-cli
+
+      - name: Build iOS simulator binary with production config (NODE_ENV=production)
+        # Uses the 'production-scan' EAS profile: NODE_ENV=production + simulator=true.
+        # Rationale: the scan's purpose (LD-157 Layer 4) is to verify autolinking
+        # exclusion produced a binary with NO dev-telemetry native symbols.
+        # Autolinking runs at prebuild time, BEFORE target-specific (device vs sim)
+        # codegen — if a module was excluded from the build graph, its symbols can't
+        # appear in either architecture. A simulator build with the same NODE_ENV=production
+        # tests the same invariant without requiring an Apple Developer Distribution
+        # Certificate (paid, requires interactive eas credentials provisioning).
+        # --local builds on the GitHub macOS runner, consumes no EAS cloud quota.
+        run: |
+          eas build \
+            --profile production-scan \
+            --platform ios \
+            --local \
+            --non-interactive \
+            --output ./mindfulnest-production-scan.tar.gz
+
+      - name: Scan simulator binary for forbidden native symbols
+        # Symbols specific to react-native-http-bridge-refurbished's iOS impl:
+        #   RCTHttpServer  — the RN module class
+        #   HTTPBridge / RCTHTTPBridge — older naming variants, defensive
+        #   GCDWebServer / WGCDWebServer — vendored HTTP server (and pod fork)
+        # If autolinking exclusion (LD-157 Layer 3) worked, NONE of these
+        # should appear in the binary. ANY match = production leak.
+        run: |
+          set -eo pipefail
+          if [ ! -f mindfulnest-production-scan.tar.gz ]; then
+            echo "::error::Simulator build archive not found at mindfulnest-production-scan.tar.gz"
+            exit 1
+          fi
+          # Unpack the simulator archive (.tar.gz containing MindfulNest.app)
+          rm -rf ./sim-extract
+          mkdir -p ./sim-extract
+          tar -xzf mindfulnest-production-scan.tar.gz -C ./sim-extract
+          # Find the .app bundle's main binary
+          BIN=$(find ./sim-extract -type f -perm +111 -name 'MindfulNest' -not -path '*/Frameworks/*' | head -n 1)
+          if [ -z "$BIN" ]; then
+            echo "::error::Could not locate main app binary in simulator archive"
+            find ./sim-extract -maxdepth 3 -type f | head -20
+            exit 1
+          fi
+          echo "Scanning $BIN ..."
+
+          FORBIDDEN_NATIVE_SYMBOLS=(
+            "RCTHttpServer"
+            "RCTHTTPBridge"
+            "HTTPBridge"
+            "GCDWebServer"
+            "WGCDWebServer"
+            "react-native-http-bridge-refurbished"
+            "ReactNativeViewShot"
+            "RNViewShot"
+          )
+
+          FOUND=0
+          for symbol in "${FORBIDDEN_NATIVE_SYMBOLS[@]}"; do
+            matches=$(strings "$BIN" | grep -F -e "$symbol" || true)
+            if [ -n "$matches" ]; then
+              echo "::error::Forbidden native symbol detected in production .ipa: $symbol"
+              echo "$matches" | head -n 5
+              FOUND=1
+            fi
+          done
+
+          if [ "$FOUND" -eq 1 ]; then
+            echo ""
+            echo "::error::Native binary scan failed. Dev-only native code reached the production iOS .ipa."
+            echo "Remediation: see Directus blocker #2 / LD-112 / LD-157 Layer 3 (autolinking exclusion)."
+            echo "  - Verify react-native.config.js's isProduction gate evaluated true at build time"
+            echo "  - Verify app.config.ts did NOT include the './plugins/withDevTelemetryServer' plugin entry"
+            echo "  - Verify EAS_BUILD_PROFILE=production was set when prebuild ran"
+            exit 1
+          fi
+
+          echo "Native binary scan passed — no forbidden symbols in production .ipa."

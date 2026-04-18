@@ -1,8 +1,11 @@
+# Reliability-tier: 2
 # MindfulNest — First Maestro Flow (testID-based)
 # Layer 4: Regression testing — home screen baseline
 # Source: APP_DEV_AUTOMATION_ARCHITECTURE_v1.md (Layer 4 specification)
 # Updated: April 16, 2026 — switched from text: to id: selectors per Directus decision 118
 #          (text-based selectors fail on iOS 26.4 due to RN accessibility tree bug)
+# Tier 2: timing-sensitive (multiple assertVisible — hits iOS accessibility bug per LD-118/LD-120).
+# Runs nightly (not yet wired). See maestro/RELIABILITY_TIERS.md.
 #
 # Run: maestro test maestro/flows/home_screen.yaml
 # Output: Screenshots saved to ~/.maestro/screenshots/

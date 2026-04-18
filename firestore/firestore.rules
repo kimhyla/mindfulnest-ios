@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// MindfulNest Firestore Security Rules v3
+// MindfulNest Firestore Security Rules v4
 // Source: CANONICAL_DATA_MODEL_v1_13.md §Security Rules Summary
 // COPPA-safe: no analytics, no child identifiers in logs
 //
@@ -25,6 +25,24 @@ rules_version = '2';
 //     BS2:  CDM security table synced (done in CDM v1.13, not here)
 //     BS3:  Bar delete prevention — split write into create/update (no delete)
 //     BS4:  Invite code UUID v4 format validation
+//   v4 — BS3 rewrite: value-based protected field immutability (April 16, 2026)
+//     BS3-v2: Replaced affectedKeys().hasAny() with fieldUnchanged() value comparison
+//       - Closes BS1c nested-field vulnerability (deep value equality, not key enumeration)
+//       - Fixes C1: resource.data null on CREATE (scoped to UPDATE-only on subcollections)
+//       - Renamed parentWriteTouchesProtectedFields() → anyProtectedFieldChanged()
+//       - Bars rule split: CREATE (no check) / UPDATE (with check, defense-in-depth)
+//       - completionLog CREATE: check removed (resource.data null + fields don't exist on subcoll)
+//       - Locked decision: PROTECTED_FIELD_IMMUTABILITY_PATTERN (Directus id=125)
+//       - LD-122 modified: UPDATE-only scope (Kim-approved April 16, 2026)
+//   v5 — COPPA hardening, Wave B1 WB-C7-T1-rules (April 18, 2026)
+//     COPPA-1 (LD-216): child CREATE requires KWS consent triad
+//       (parental_consent_verified=true, parental_consent_source='kws', kws_parent_id set)
+//     COPPA-3 (LD-225): child field allowlist — CREATE rejects fields not in allowlist
+//       Forbids: last_name, school, address, phone, childEmail, IP logs, device fingerprints,
+//       photo_url, chosen_guide_name (Guide Bird permanently 'Chipper'), clinical fields
+//     COPPA-11 (LD-226): parent-child nesting required — linkedParent FK must exist,
+//       reject orphan child creation (already partly enforced; v5 tightens)
+//     COPPA-4 (LD-218): retention_clock_started_at added to protected fields (Cloud Function only)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -70,20 +88,87 @@ service cloud.firestore {
     // are client-writable for MVP because module completion batch runs client-side.
     // V2: Move completion writes to Cloud Functions, then add these to protected list.
     //
-    // ⚠️ BS1c WARNING: .diff().affectedKeys() returns TOP-LEVEL keys only.
-    // A write to "someMap.nestedField" returns "someMap", NOT "someMap.nestedField".
-    // All protected fields MUST be top-level on the child doc. If a protected field
-    // is ever moved inside a nested map, this check will silently stop working.
-    function parentWriteTouchesProtectedFields() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
-        // Notification tracking — Cloud Function only
-        'parentNotifiedSkills',
-        'therapistFirstCompletionNotified',
-        'inactivityNotifiedAt',
-        // Relationship fields — immutable after creation (set once in invite claim)
-        // Counter-agent v3 finding: parent could break therapeutic link by updating these
-        'linkedParent',
-        'linkedTherapist'
+    // ⚠️ BS1c BAN: Do NOT use .diff().affectedKeys() for protected-field checks
+    // anywhere in this project. affectedKeys() returns TOP-LEVEL keys only — nested
+    // map mutations bypass it silently. Use fieldUnchanged() (value comparison) instead.
+    // Locked decision: PROTECTED_FIELD_IMMUTABILITY_PATTERN (Directus id=125).
+    //
+    // fieldUnchanged(field): Returns true if the field's value is identical between
+    // the existing document (resource.data) and the incoming write (request.resource.data).
+    // Uses .get(field, null) so missing fields default to null on both sides.
+    // Performs deep value comparison — catches nested map/array mutations.
+    // IMPORTANT: Only valid on UPDATE operations. On CREATE, resource.data is undefined
+    // and .get() throws "Null value error" (empirically verified, emulator v1.20.4).
+    function fieldUnchanged(field) {
+      return request.resource.data.get(field, null) == resource.data.get(field, null);
+    }
+
+    // Returns true if ANY protected field was changed (value differs between old and new).
+    // Used to DENY parent writes that attempt to modify protected fields.
+    // Call sites: child UPDATE (line ~165), bars UPDATE (line ~200).
+    // NOT called on CREATE operations — see fieldUnchanged() comment above.
+    //
+    // v5 COPPA additions (LD-218 retention, LD-216 consent triad):
+    //   - retention_clock_started_at (Cloud Function sets when program completes)
+    //   - parental_consent_verified (KWS callback sets once)
+    //   - parental_consent_source (KWS sets once)
+    //   - kws_parent_id (KWS sets once)
+    function anyProtectedFieldChanged() {
+      return !fieldUnchanged('parentNotifiedSkills')
+        || !fieldUnchanged('therapistFirstCompletionNotified')
+        || !fieldUnchanged('inactivityNotifiedAt')
+        || !fieldUnchanged('linkedParent')
+        || !fieldUnchanged('linkedTherapist')
+        || !fieldUnchanged('retention_clock_started_at')
+        || !fieldUnchanged('parental_consent_verified')
+        || !fieldUnchanged('parental_consent_source')
+        || !fieldUnchanged('kws_parent_id');
+    }
+
+    // ─── COPPA helpers (v5) ────────────────────────────────────────
+    //
+    // hasValidKwsConsent(): returns true if the child CREATE request has the
+    // KWS consent triad intact (LD-216 COPPA_VPC_VIA_KWS_ONLY).
+    // All three must be present + correct — Firestore does not trust clients
+    // to set verified=true without source='kws' and a kws_parent_id.
+    function hasValidKwsConsent() {
+      return request.resource.data.parental_consent_verified == true
+        && request.resource.data.parental_consent_source == 'kws'
+        && request.resource.data.kws_parent_id is string
+        && request.resource.data.kws_parent_id.size() > 0;
+    }
+
+    // childFieldAllowlist(): returns true if the child CREATE request's fields
+    // are all in the LD-225 COPPA_DATA_MINIMIZATION allowlist.
+    // Hard-deny any attempt to write: last_name, school, address, phone,
+    // childEmail, IP logs, device fingerprints, photo_url, clinical notes,
+    // CLQ/GPR scores on child record, chosen_guide_name (Guide Bird is 'Chipper').
+    //
+    // NOTE: Allowlist is set-level — rule rejects CREATE containing ANY field
+    // outside this list. UPDATE inherits protected-field check; field additions
+    // via UPDATE are blocked via the same hasOnly pattern where needed.
+    function childFieldAllowlist() {
+      return request.resource.data.keys().hasOnly([
+        // Core identity + relationships (required)
+        'linkedParent', 'linkedTherapist', 'displayName',
+        // Content personalization (LD-225)
+        'date_of_birth', 'gender',
+        // Program state
+        'current_module_id', 'current_phase', 'current_checkpoint_id',
+        'voice_cache_ids',
+        // Consent (KWS)
+        'parental_consent_verified', 'parental_consent_source', 'kws_parent_id',
+        'consent_status', 'consent_scope',
+        // Retention
+        'last_session_timestamp', 'retention_clock_started_at',
+        // Audit
+        'created_at', 'updated_at',
+        // Legacy fields carried forward for compatibility (v1 schema):
+        'preferredTechniques', 'chatEnabled',
+        'parentNotifiedSkills', 'therapistFirstCompletionNotified', 'inactivityNotifiedAt',
+        // Therapist-facing summary fields (v2 will move to Cloud Functions — for now, client-writable)
+        'totalSessions', 'sessionsThisWeek', 'domainSessionCounts',
+        'completions', 'lastActivityAt', 'engagementStatus', 'weekStartDate',
       ]);
     }
 
@@ -144,18 +229,25 @@ service cloud.firestore {
       // BS1b FIX: Parent can CREATE a new child doc during invite claim flow.
       // Required fields enforced: linkedParent must be the creating parent,
       // linkedTherapist and displayName must be present.
+      //
+      // v5 COPPA ADDITIONS:
+      //   COPPA-1 (LD-216): KWS consent triad REQUIRED — verified+source+id
+      //   COPPA-3 (LD-225): field allowlist ENFORCED — reject fields like last_name
+      //   COPPA-11 (LD-226): linkedParent FK required (already in original rule)
       allow create: if isAuthenticated()
         && isParent()
         && request.resource.data.linkedParent == request.auth.uid
         && request.resource.data.linkedTherapist != null
-        && request.resource.data.displayName != null;
+        && request.resource.data.displayName != null
+        && hasValidKwsConsent()
+        && childFieldAllowlist();
 
       // Parent can UPDATE their linked child — with two gates:
       // 1. Cannot touch protected fields (notification tracking)
       // 2. Cannot set chatEnabled=true without parent coppaChatConsent
       allow update: if isAuthenticated()
         && isChildsParent(childId)
-        && !parentWriteTouchesProtectedFields()
+        && !anyProtectedFieldChanged()
         && (
           !request.resource.data.chatEnabled
           || get(/databases/$(database)/documents/parents/$(request.auth.uid)).data.coppaChatConsent == true
@@ -177,18 +269,22 @@ service cloud.firestore {
       // Bar deletion mid-progress would corrupt game state (activeBarId
       // points to nothing). If "reset progress" is needed, use a Cloud Function.
 
-      // BS3 prophylactic consistency: bars and completionLog rules include the
-      // same parentWriteTouchesProtectedFields() check as the child doc.
-      // Currently safe (module completion never touches protected fields),
-      // but this closes the divergence gap if a future bug accidentally writes
-      // a protected field during a batch. All documents in the completion batch
-      // now have identical rule gates → guaranteed all-pass or all-fail.
+      // BS3-v2: Bars rules split into CREATE and UPDATE with different guards.
+      // Protected field check (anyProtectedFieldChanged) is on UPDATE only.
+      //
+      // INTENTIONAL: No protected-field check on bars CREATE because:
+      //   (a) resource.data is null on CREATE → fieldUnchanged() throws (C1 finding)
+      //   (b) Protected fields exist only on /children/{id}, not on bars subcollection
+      // LD-122 modified (Kim-approved April 16, 2026) to UPDATE-only scope.
+      // Emulator test: bars_create_has_no_protected_field_check_intentional
 
       match /bars/{barId} {
         allow read: if isAuthenticated() && isChildsParent(childId);
-        allow create, update: if isAuthenticated()
+        allow create: if isAuthenticated()
+          && isChildsParent(childId);
+        allow update: if isAuthenticated()
           && isChildsParent(childId)
-          && !parentWriteTouchesProtectedFields();
+          && !anyProtectedFieldChanged();
         allow read: if isAuthenticated() && isChildsTherapist(childId);
       }
 
@@ -197,10 +293,11 @@ service cloud.firestore {
       // CDM table says "Parent: No access" — but module completion needs
       // client-side create for MVP (no Cloud Functions yet).
 
+      // INTENTIONAL: No protected-field check on completionLog CREATE — same
+      // rationale as bars CREATE above (C1 + fields don't exist on subcoll docs).
       match /completionLog/{logId} {
         allow create: if isAuthenticated()
-          && isChildsParent(childId)
-          && !parentWriteTouchesProtectedFields();
+          && isChildsParent(childId);
         allow read: if isAuthenticated() && isChildsTherapist(childId);
       }
     }

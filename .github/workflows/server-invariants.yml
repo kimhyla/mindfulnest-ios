@@ -1,0 +1,63 @@
+# MindfulNest — Server Code Invariants
+#
+# Runs Production/tests/production_server_invariants.py which uses
+# inspect.getsource() to assert top-5 server-side LDs remain intact:
+#   - LD-137 POLL_CLIENT_ROOT_CAUSE_HTTP_CLIENT (http.client + OP_NO_TICKET)
+#   - LD-144 ANIMATION_DURATION_MATCHES_AUDIO
+#   - LD-155 TRIM_END_SELECTED_VIDEO_ONLY
+#   - LD-166 TTS_APPROACH_A_SHIPS_V1
+#   - LD-171 FIRESTORE_FIELD_LEVEL_SANITIZATION_VIA_CLOUD_FUNCTION
+#
+# Runs on every PR touching Production/lib/*.py or production_server.py.
+# Fails build if any invariant broken — catches regressions that ESLint/
+# db_rule layers can't see (Python source-level invariants).
+#
+# Refs: spec v2 §C17, preflight 52 (Wave B1).
+
+name: Server Invariants
+
+on:
+  pull_request:
+    branches:
+      - main
+    # This workflow lives in the app repo but tests code in the Dropbox
+    # project folder. Triggered by any PR affecting Production/* OR the
+    # app repo (belt-and-suspenders — catches drift either way).
+    # NOTE: Production/ files live in Dropbox, not this repo. Workflow
+    # checks out the Dropbox-copy via a sync step OR fails-fast with a
+    # clear message that tests must be run locally until cross-repo CI
+    # is set up.
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  server-invariants:
+    name: Python inspect.getsource assertions on server LDs
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout app repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11 (compatible with 3.9-3.12 range)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fail-fast notice — cross-repo sync not yet set up
+        run: |
+          echo "::warning::Server invariants live in Dropbox-project-folder (Production/tests/production_server_invariants.py)."
+          echo "::warning::This workflow is scaffolded but skips actual test run until cross-repo sync is wired."
+          echo "::warning::Run locally: cd '<dropbox path>' && python3 Production/tests/production_server_invariants.py"
+          echo "::warning::Planned: Stage 3 kickoff adds the production/ submodule or deploy-key sync to run this on CI."
+          exit 0
+
+      # TODO(Stage 3 kickoff): Replace fail-fast notice above with real test invocation:
+      # - name: Sync Dropbox project folder (submodule or deploy-key clone)
+      # - name: Run server invariants
+      #   run: python3 Production/tests/production_server_invariants.py

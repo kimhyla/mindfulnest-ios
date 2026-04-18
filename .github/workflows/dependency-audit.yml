@@ -1,0 +1,65 @@
+# MindfulNest — Dependency Audit
+#
+# Walks the FULL package-lock.json (not just top-level) and fails on:
+# - Banned packages per spec v2 §C7-T1 (Sentry, Bugsnag, Rollbar, Phaser,
+#   react-native-spine, Capacitor). COPPA-6 (no behavioral advertising)
+#   + LD-157 (dev-only native module exclusion pattern).
+# - Known CVE in any dependency at severity >= high.
+#
+# Runs on every PR + daily schedule (catches new CVEs between PRs).
+#
+# Refs: LD-220 COPPA_NO_BEHAVIORAL_ADVERTISING, LD-157 DEV_TELEMETRY_AUTOLINKING,
+# spec v2 §C7-T1.
+
+name: Dependency Audit
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - package.json
+      - package-lock.json
+  schedule:
+    # Daily at 09:00 UTC (weekdays) — catches new CVEs
+    - cron: "0 9 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  banned-packages-scan:
+    name: Scan package-lock.json for banned packages
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.11.0"
+
+      - name: Walk full dependency tree for banned packages
+        run: node scripts/check-banned-packages.mjs
+
+  npm-audit:
+    name: npm audit (high+ severity)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.11.0"
+
+      - name: npm ci
+        run: npm ci --no-audit --no-fund
+
+      - name: Run audit (high+ only)
+        run: npm audit --audit-level=high --production

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { Link } from "expo-router";
-import { getDevTelemetry, updateDevTelemetry } from "../src/dev/DevTelemetry";
 import type { DevTelemetryData } from "../src/dev/DevTelemetry";
 
 export default function MapScreen() {
@@ -9,6 +8,11 @@ export default function MapScreen() {
 
   useEffect(() => {
     if (__DEV__) {
+      // Conditional require so Metro DCEs the entire DevTelemetry module from
+      // production bundles. Top-level ES import would survive tree-shaking.
+      // typeof import(...) is a type-only expression (Babel-erased) preserving strict-mode types.
+      const { getDevTelemetry, updateDevTelemetry } =
+        require("../src/dev/DevTelemetry") as typeof import("../src/dev/DevTelemetry");
       updateDevTelemetry({ currentScreen: "home" });
       setTelemetry(getDevTelemetry());
     }

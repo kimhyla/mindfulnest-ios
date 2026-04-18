@@ -33,6 +33,17 @@ yarn-error.*
 # local env files
 .env*.local
 
+# DevTelemetry per-launch auth token (LD-157 4b-hardened (ii))
+mn-devtelemetry-token
+/tmp/mn-devtelemetry-token
+
+# Generated production .ipa from local EAS builds (CI artifact)
+mindfulnest-production.ipa
+ipa-extract/
+
+# Firestore emulator runtime log (regenerated on every emulator start)
+firestore-debug.log
+
 # typescript
 *.tsbuildinfo
 
