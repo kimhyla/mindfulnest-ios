@@ -48,6 +48,7 @@ jobs:
     timeout-minutes: 60
     env:
       EAS_BUILD_PROFILE: development
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
     steps:
       - name: Verify gate env vars
