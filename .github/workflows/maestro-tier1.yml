@@ -1,0 +1,203 @@
+# MindfulNest — Maestro Tier-1 PR Gate
+#
+# Per maestro/RELIABILITY_TIERS.md, Tier-1 flows are deterministic flows that
+# must pass on every PR to main. This workflow:
+#   1. Verifies env vars
+#   2. Checks out + sets up Node.js
+#   3. Installs eas-cli + maestro CLI (LD-117: maestro 2.4.0)
+#   4. Builds an iOS simulator .app via `eas build --profile development --local`
+#      (development profile is the only one with `ios.simulator: true` per eas.json;
+#      the smoke flow doesn't depend on NODE_ENV — it's launch + screenshot only)
+#   5. Boots an iOS simulator via `xcrun simctl boot`
+#   6. Installs the .app on the booted simulator
+#   7. Tier-marker presence enforcement: fails if any flow in maestro/flows/ lacks
+#      a `# Reliability-tier: [123]` line — converts silent CI drop on refactor
+#      into a hard build failure (Phase 0 finding C3-F5)
+#   8. Runs `maestro test` on Tier-1 flows only (filtered by grep on the marker)
+#   9. Uploads Maestro screenshot artifacts for debugging
+#
+# Per LD-117 STAGE2_GATE_HTTP_ENDPOINT and LD-120 MAESTRO_IOS_WORKAROUND_PROTOCOL.
+# Per Phase 0 preflight #28 Path A (Kim approved 2026-04-17).
+# Mirrors the established pattern from .github/workflows/telemetry-native-scan.yml.
+
+name: Maestro Tier-1 PR Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "app.config.ts"
+      - "app.config.js"
+      - "app.json"
+      - "eas.json"
+      - "app/**"
+      - "src/**"
+      - "maestro/**"
+      - ".github/workflows/maestro-tier1.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  maestro-tier1:
+    name: Run Tier-1 Maestro flows on iOS simulator
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      EAS_BUILD_PROFILE: development
+
+    steps:
+      - name: Verify gate env vars
+        run: |
+          if [ "$EAS_BUILD_PROFILE" != "development" ]; then
+            echo "::error::EAS_BUILD_PROFILE is '$EAS_BUILD_PROFILE', expected 'development'"; exit 1
+          fi
+          echo "Env confirmed: EAS_BUILD_PROFILE=$EAS_BUILD_PROFILE"
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install eas-cli
+        run: npm install -g eas-cli
+
+      - name: Install Maestro CLI (LD-117 pinned to 2.4.0)
+        # Maestro install script puts CLI at ~/.maestro/bin/maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Verify Maestro CLI
+        run: maestro --version
+
+      - name: Tier-marker presence enforcement (C3-F5)
+        # Fail the build if ANY flow in maestro/flows/ lacks a `# Reliability-tier: [123]` line.
+        # Anchored regex (^# Reliability-tier: [123]$) prevents collision with prose like "tier 1".
+        # This converts silent CI drop (flow without tier header gets ignored by the filter step
+        # below) into a hard build failure. Per Phase 0 review C3-F5.
+        run: |
+          set -eo pipefail
+          MISSING=0
+          for f in maestro/flows/*.yaml; do
+            if ! grep -qE "^# Reliability-tier: [123]$" "$f"; then
+              echo "::error file=$f::Flow file lacks required tier marker. Add '# Reliability-tier: N' (1|2|3) at top. See maestro/RELIABILITY_TIERS.md."
+              MISSING=1
+            fi
+          done
+          if [ "$MISSING" -eq 1 ]; then
+            echo "::error::One or more Maestro flows are missing tier markers. Refusing to run Tier-1 gate against an incomplete tagging set."
+            exit 1
+          fi
+          echo "All flows have tier markers."
+
+      - name: Build iOS simulator app via EAS local build
+        # Development profile is the only one with `ios.simulator: true` per eas.json.
+        # Smoke flow (Tier 1) doesn't depend on NODE_ENV — it's launch + screenshot only.
+        # --local builds on the GitHub macOS runner without consuming EAS quota.
+        # --non-interactive prevents prompts. Output is a tarball containing the .app for simulator.
+        run: |
+          eas build \
+            --profile development \
+            --platform ios \
+            --local \
+            --non-interactive \
+            --output ./mindfulnest-dev-sim.tar.gz
+
+      - name: Extract .app from EAS build output
+        # EAS local simulator builds produce a .tar.gz containing AppName.app.
+        # Extract it so we can install it on the booted simulator below.
+        run: |
+          set -eo pipefail
+          if [ ! -f mindfulnest-dev-sim.tar.gz ]; then
+            echo "::error::EAS build output not found at mindfulnest-dev-sim.tar.gz"
+            exit 1
+          fi
+          mkdir -p ./build-extract
+          tar -xzf mindfulnest-dev-sim.tar.gz -C ./build-extract
+          APP_PATH=$(find ./build-extract -type d -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::No .app bundle found in EAS output. Contents:"
+            ls -la ./build-extract
+            exit 1
+          fi
+          echo "Found .app at $APP_PATH"
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+
+      - name: Boot iOS simulator
+        # macos-latest ships Xcode + iOS simulator runtimes preinstalled. Boot the
+        # latest available iPhone simulator. `xcrun simctl bootstatus` waits for
+        # the boot to complete before continuing.
+        run: |
+          set -eo pipefail
+          DEVICE_UDID=$(xcrun simctl list devices available --json | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          # Find the latest iPhone runtime, prefer iOS 18+
+          best = None
+          for runtime, devices in sorted(data['devices'].items(), reverse=True):
+              if 'iOS' not in runtime:
+                  continue
+              for d in devices:
+                  if d.get('isAvailable') and 'iPhone' in d.get('name',''):
+                      best = (runtime, d['udid'], d['name'])
+                      break
+              if best: break
+          if not best:
+              print('NONE'); sys.exit(0)
+          print(best[1])
+          ")
+          if [ "$DEVICE_UDID" = "NONE" ] || [ -z "$DEVICE_UDID" ]; then
+            echo "::error::No available iPhone simulator found on this runner"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Booting simulator UDID=$DEVICE_UDID"
+          xcrun simctl boot "$DEVICE_UDID" || echo "(already booted or boot pending)"
+          xcrun simctl bootstatus "$DEVICE_UDID" -b
+          echo "DEVICE_UDID=$DEVICE_UDID" >> "$GITHUB_ENV"
+
+      - name: Install app on simulator
+        run: |
+          set -eo pipefail
+          xcrun simctl install "$DEVICE_UDID" "$APP_PATH"
+          echo "Installed $APP_PATH on $DEVICE_UDID"
+
+      - name: Run Tier-1 Maestro flows
+        # Filter the maestro/flows/ directory to only files marked Tier 1, then
+        # invoke `maestro test` on each. If zero Tier-1 flows are found, fail
+        # (the workflow shouldn't silently no-op). Per LD-120, smoke flows
+        # use takeScreenshot only — exit-0 means the app launched successfully.
+        run: |
+          set -eo pipefail
+          TIER1_FLOWS=$(grep -lE "^# Reliability-tier: 1$" maestro/flows/*.yaml || true)
+          if [ -z "$TIER1_FLOWS" ]; then
+            echo "::error::No Tier-1 flows found. Expected at least one flow with '# Reliability-tier: 1'."
+            exit 1
+          fi
+          echo "Tier-1 flows to run:"
+          echo "$TIER1_FLOWS"
+          for flow in $TIER1_FLOWS; do
+            echo "::group::Running $flow"
+            maestro test "$flow"
+            echo "::endgroup::"
+          done
+
+      - name: Upload Maestro screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-tier1-screenshots
+          path: ~/.maestro/tests/**/*
+          if-no-files-found: warn
+          retention-days: 14

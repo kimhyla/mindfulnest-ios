@@ -1,7 +1,10 @@
+# Reliability-tier: 3
 # MindfulNest — Full Module Navigation Flow (testID-based)
 # Layer 4: Regression testing — complete 7-screen navigation
 # Tests flow: map → intro → phase_a → phase_b → resolution → win → decoration → map
 # Updated: April 16, 2026 — switched from text: to id: selectors per Directus decision 118
+# Tier 3: full integration (8x assertVisible end-to-end; depends on screens not all built yet).
+# Runs pre-release only (not yet wired). See maestro/RELIABILITY_TIERS.md.
 #
 # Run: maestro test maestro/flows/full_module_flow.yaml
 

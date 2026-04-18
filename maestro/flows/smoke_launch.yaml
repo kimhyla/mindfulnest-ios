@@ -1,7 +1,10 @@
+# Reliability-tier: 1
 # MindfulNest — Smoke Test Flow
 # Launches app and captures screenshot. No UI hierarchy assertions
-# (iOS 26.4 + Maestro has intermittent kAXErrorInvalidUIElement issues).
+# (iOS 26.4 + Maestro has intermittent kAXErrorInvalidUIElement issues per LD-120).
 # The screenshot itself is the verification — if the app renders, we see it.
+# Tier 1: runs on every PR via .github/workflows/maestro-tier1.yml.
+# See maestro/RELIABILITY_TIERS.md for tier definitions.
 #
 # Run: maestro test maestro/flows/smoke_launch.yaml
 
