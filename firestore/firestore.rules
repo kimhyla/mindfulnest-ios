@@ -34,6 +34,17 @@ rules_version = '2';
 //       - completionLog CREATE: check removed (resource.data null + fields don't exist on subcoll)
 //       - Locked decision: PROTECTED_FIELD_IMMUTABILITY_PATTERN (Directus id=125)
 //       - LD-122 modified: UPDATE-only scope (Kim-approved April 16, 2026)
+//   v6 — S3-CF-sanitize Pattern C staging-relay (April 18, 2026)
+//     LD-171 FIRESTORE_FIELD_LEVEL_SANITIZATION_VIA_CLOUD_FUNCTION
+//     /zap_staging + /wishing_garden_staging: client writes only by auth'd parent
+//       on behalf of their linked child. No updates/deletes from clients.
+//     /zaps + /wishing_garden_entries: admin-SDK-write-only (canonical docs
+//       only written by the Cloud Function relay). Reads scoped to the
+//       authoring parent + linked therapist.
+//     /audit_logs: admin-SDK-only; clients never read (Console-only access).
+//     Residual: staging docs are readable in Firestore PITR for up to 7 days
+//       post-delete (LD-237 SHORTCUT_STAGING_PITR_WINDOW_20260418 — closure:
+//       scheduled purge CF + Firestore TTL when GA).
 //   v5 — COPPA hardening, Wave B1 WB-C7-T1-rules (April 18, 2026)
 //     COPPA-1 (LD-216): child CREATE requires KWS consent triad
 //       (parental_consent_verified=true, parental_consent_source='kws', kws_parent_id set)
@@ -342,6 +353,66 @@ service cloud.firestore {
     // BS1a FIX: Parent can only claim invites with status == 'active'.
     // Prevents race condition where two parents claim the same code.
 
+    // ─── Child-authored content: Zap + Wishing Garden (LD-171) ─────
+    //
+    // Pattern C staging-relay: clients write to `_staging` collections; a
+    // Cloud Function sanitizes (field allowlist + PII scan) and writes the
+    // canonical document. Canonical paths are admin-SDK-write-only.
+    //
+    // See: functions/src/triggers/firestore/sanitizeZapStaging.ts
+    //      functions/src/triggers/firestore/sanitizeWishingGardenStaging.ts
+    // Preflight: prod_preflight_reviews id=61.
+
+    match /zap_staging/{stagingId} {
+      // Parent writes on behalf of their linked child (children have no Auth).
+      allow create: if isAuthenticated()
+        && isParent()
+        && request.resource.data.childId is string
+        && isChildsParent(request.resource.data.childId);
+      // Parent reads their own staging doc (for _sanitize_status updates).
+      allow read: if isAuthenticated()
+        && isParent()
+        && isChildsParent(resource.data.childId);
+      // Clients never update/delete — CF relay handles status writes + cleanup.
+      allow update, delete: if false;
+    }
+
+    match /wishing_garden_staging/{stagingId} {
+      allow create: if isAuthenticated()
+        && isParent()
+        && request.resource.data.childId is string
+        && isChildsParent(request.resource.data.childId);
+      allow read: if isAuthenticated()
+        && isParent()
+        && isChildsParent(resource.data.childId);
+      allow update, delete: if false;
+    }
+
+    match /zaps/{zapId} {
+      // Canonical Zap doc: CF relay writes only. Path IS the trust boundary.
+      allow create, update, delete: if false;
+      allow read: if isAuthenticated()
+        && (
+          (isParent() && isChildsParent(resource.data.childId))
+          || (isTherapist() && isChildsTherapist(resource.data.childId))
+        );
+    }
+
+    match /wishing_garden_entries/{entryId} {
+      allow create, update, delete: if false;
+      allow read: if isAuthenticated()
+        && (
+          (isParent() && isChildsParent(resource.data.childId))
+          || (isTherapist() && isChildsTherapist(resource.data.childId))
+        );
+    }
+
+    match /audit_logs/{entryId} {
+      // Admin-SDK only. Auditor access via Firestore Console / Cloud SQL export.
+      allow read, write: if false;
+    }
+
+    // ────────────────────────────────────────────────────────────────
     match /therapistInvites/{inviteCode} {
       // BS4: Validate UUID v4 format on create
       // Therapist can create new invites (server-generated UUID code)
