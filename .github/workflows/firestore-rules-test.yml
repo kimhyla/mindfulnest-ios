@@ -1,0 +1,79 @@
+# MindfulNest — Firestore Rules Test
+#
+# Runs @firebase/rules-unit-testing suite against firestore/firestore.rules
+# on every PR touching security rules, rules tests, or package.json.
+# Per spec v2 §C7-T1. Blocks merge on any rule regression.
+#
+# This is a Stage 3 Wave B1 safety rail — no Stage 3 app code merges
+# without proving Firestore rules still enforce COPPA, data minimization,
+# parent-child nesting, and protected-field immutability invariants.
+#
+# Refs: LD-163 STAGE3_SECURITY_RULES_FIRST, LD-164, LD-225, LD-226, COPPA-1..10.
+
+name: Firestore Rules Test
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - firestore/firestore.rules
+      - firestore/__tests__/**
+      - firestore/jest.config.firestore.js
+      - package.json
+      - package-lock.json
+  push:
+    branches:
+      - main
+    paths:
+      - firestore/firestore.rules
+      - firestore/__tests__/**
+
+permissions:
+  contents: read
+
+jobs:
+  rules-test:
+    name: Firestore rules unit tests (emulator)
+    runs-on: ubuntu-24.04
+    env:
+      CI: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.11.0"
+          cache: "npm"
+
+      - name: Setup Java 21 (Firebase emulator requirement)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Verify Java 21 active
+        run: java -version 2>&1 | grep 'version "21'
+
+      - name: Install npm deps
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Firebase Tools
+        run: npm install -g firebase-tools@^15.15.0
+
+      - name: Run Firestore rules tests (emulator:exec)
+        run: |
+          firebase emulators:exec --only firestore \
+            'jest --config firestore/jest.config.firestore.js --ci'
+
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestore-debug-logs
+          path: |
+            firestore-debug.log
+            firebase-debug.log
