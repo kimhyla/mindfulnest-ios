@@ -1,7 +1,20 @@
-import { useEffect } from "react";
-import { Stack } from "expo-router";
+import { useEffect, type ReactElement } from "react";
+import { Stack, Redirect, usePathname } from "expo-router";
+import { AuthProvider } from "../src/contexts/AuthContext";
+import { useAuth } from "../src/hooks/useAuth";
 
-export default function RootLayout() {
+function AuthGate({ children }: { children: ReactElement }): ReactElement {
+  const { status } = useAuth();
+  const pathname = usePathname();
+  // Don't redirect while auth state is still resolving (avoids flashing
+  // the sign-in screen on cold start for signed-in users).
+  if (status === 'signedOut' && !pathname.startsWith('/(auth)') && !pathname.startsWith('/sign-')) {
+    return <Redirect href="/sign-in" />;
+  }
+  return children;
+}
+
+export default function RootLayout(): ReactElement {
   useEffect(() => {
     if (__DEV__) {
       // Conditional require so Metro DCEs the entire DevTelemetry + DevTelemetryServer
@@ -31,20 +44,25 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: "#4A6741" },
-        headerTintColor: "#fff",
-        headerTitleStyle: { fontWeight: "bold" },
-      }}
-    >
-      <Stack.Screen name="index" options={{ title: "MindfulNest — Everdale Map" }} />
-      <Stack.Screen name="intro" options={{ title: "The Call" }} />
-      <Stack.Screen name="phase_a" options={{ title: "Buy-In + Phase A" }} />
-      <Stack.Screen name="phase_b" options={{ title: "Phase B — Guided Meditation" }} />
-      <Stack.Screen name="resolution" options={{ title: "The Rescue" }} />
-      <Stack.Screen name="win" options={{ title: "Win!" }} />
-      <Stack.Screen name="decoration" options={{ title: "My Space" }} />
-    </Stack>
+    <AuthProvider>
+      <AuthGate>
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: "#4A6741" },
+            headerTintColor: "#fff",
+            headerTitleStyle: { fontWeight: "bold" },
+          }}
+        >
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="index" options={{ title: "MindfulNest — Everdale Map" }} />
+          <Stack.Screen name="intro" options={{ title: "The Call" }} />
+          <Stack.Screen name="phase_a" options={{ title: "Buy-In + Phase A" }} />
+          <Stack.Screen name="phase_b" options={{ title: "Phase B — Guided Meditation" }} />
+          <Stack.Screen name="resolution" options={{ title: "The Rescue" }} />
+          <Stack.Screen name="win" options={{ title: "Win!" }} />
+          <Stack.Screen name="decoration" options={{ title: "My Space" }} />
+        </Stack>
+      </AuthGate>
+    </AuthProvider>
   );
 }
