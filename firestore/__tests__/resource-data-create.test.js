@@ -123,7 +123,8 @@ describe('Step C: resource.data on CREATE — empirical verification', () => {
   });
 
   // FINDING 4: child doc CREATE does NOT call anyProtectedFieldChanged()
-  // (it has its own create rule at line 147) so it's unaffected by C1.
+  // (it has its own create rule) so it's unaffected by C1.
+  // Updated 2026-04-18 (v5): now requires KWS consent triad per LD-216 COPPA_VPC_VIA_KWS_ONLY.
   test('child doc CREATE: unaffected by C1 (different rule path)', async () => {
     const db = authedDb(testEnv, PARENT_UID);
     await assertSucceeds(
@@ -131,6 +132,9 @@ describe('Step C: resource.data on CREATE — empirical verification', () => {
         displayName: 'C1 Test Child',
         linkedParent: PARENT_UID,
         linkedTherapist: THERAPIST_UID,
+        parental_consent_verified: true,
+        parental_consent_source: 'kws',
+        kws_parent_id: 'kws-c1-test',
       })
     );
   });

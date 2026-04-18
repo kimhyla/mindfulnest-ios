@@ -216,15 +216,24 @@ describe('Child document rules', () => {
 
 // ─── Child Create Rules (BS1b) ──────────────────────────────────
 
-describe('Child create rules (BS1b)', () => {
+// Minimal valid KWS consent payload for child CREATE.
+// Added in v5 — all three fields required by LD-216 COPPA_VPC_VIA_KWS_ONLY.
+const KWS_CONSENT = {
+  parental_consent_verified: true,
+  parental_consent_source: 'kws',
+  kws_parent_id: 'kws-abc-123',
+};
+
+describe('Child create rules (BS1b + v5 COPPA)', () => {
   beforeEach(async () => { await seedBaseline(); });
 
-  test('BS1b: parent can create child with required fields', async () => {
+  test('BS1b: parent can create child with required fields + KWS consent (v5)', async () => {
     const db = authedDb(testEnv, PARENT_UID);
     await assertSucceeds(db.doc('children/new-child-001').set({
       displayName: 'New Child',
       linkedParent: PARENT_UID,
       linkedTherapist: THERAPIST_UID,
+      ...KWS_CONSENT,
     }));
   });
 
@@ -233,6 +242,7 @@ describe('Child create rules (BS1b)', () => {
     await assertFails(db.doc('children/new-child-002').set({
       linkedParent: PARENT_UID,
       linkedTherapist: THERAPIST_UID,
+      ...KWS_CONSENT,
     }));
   });
 
@@ -242,6 +252,7 @@ describe('Child create rules (BS1b)', () => {
       displayName: 'Spoofed Child',
       linkedParent: OTHER_PARENT_UID,
       linkedTherapist: THERAPIST_UID,
+      ...KWS_CONSENT,
     }));
   });
 
@@ -250,6 +261,124 @@ describe('Child create rules (BS1b)', () => {
     await assertFails(db.doc('children/new-child-004').set({
       displayName: 'No Therapist Child',
       linkedParent: PARENT_UID,
+      ...KWS_CONSENT,
+    }));
+  });
+
+  // ─── v5 COPPA hardening (Wave B1 WB-C7-T1-rules) ──────────────
+
+  test('COPPA-1 (LD-216): child CREATE fails without KWS consent triad', async () => {
+    const db = authedDb(testEnv, PARENT_UID);
+    await assertFails(db.doc('children/new-child-coppa-1a').set({
+      displayName: 'No Consent Child',
+      linkedParent: PARENT_UID,
+      linkedTherapist: THERAPIST_UID,
+      // No KWS_CONSENT fields
+    }));
+  });
+
+  test('COPPA-1: child CREATE fails with parental_consent_verified=false', async () => {
+    const db = authedDb(testEnv, PARENT_UID);
+    await assertFails(db.doc('children/new-child-coppa-1b').set({
+      displayName: 'Unverified Consent Child',
+      linkedParent: PARENT_UID,
+      linkedTherapist: THERAPIST_UID,
+      parental_consent_verified: false,
+      parental_consent_source: 'kws',
+      kws_parent_id: 'kws-x',
+    }));
+  });
+
+  test('COPPA-1: child CREATE fails with consent_source != "kws"', async () => {
+    const db = authedDb(testEnv, PARENT_UID);
+    await assertFails(db.doc('children/new-child-coppa-1c').set({
+      displayName: 'Wrong Source Child',
+      linkedParent: PARENT_UID,
+      linkedTherapist: THERAPIST_UID,
+      parental_consent_verified: true,
+      parental_consent_source: 'custom',  // Only 'kws' allowed
+      kws_parent_id: 'kws-x',
+    }));
+  });
+
+  test('COPPA-1: child CREATE fails with empty kws_parent_id', async () => {
+    const db = authedDb(testEnv, PARENT_UID);
+    await assertFails(db.doc('children/new-child-coppa-1d').set({
+      displayName: 'Empty KWS ID Child',
+      linkedParent: PARENT_UID,
+      linkedTherapist: THERAPIST_UID,
+      parental_consent_verified: true,
+      parental_consent_source: 'kws',
+      kws_parent_id: '',
+    }));
+  });
+
+  test('COPPA-3 (LD-225): child CREATE fails with forbidden field "last_name"', async () => {
+    const db = authedDb(testEnv, PARENT_UID);
+    await assertFails(db.doc('children/new-child-coppa-3a').set({
+      displayName: 'PII Bloat Child',
+      linkedParent: PARENT_UID,
+      linkedTherapist: THERAPIST_UID,
+      ...KWS_CONSENT,
+      last_name: 'Smith',  // NOT in allowlist
+    }));
+  });
+
+  test('COPPA-3: child CREATE fails with forbidden field "school"', async () => {
+    const db = authedDb(testEnv, PARENT_UID);
+    await assertFails(db.doc('children/new-child-coppa-3b').set({
+      displayName: 'School Field Child',
+      linkedParent: PARENT_UID,
+      linkedTherapist: THERAPIST_UID,
+      ...KWS_CONSENT,
+      school: 'Lincoln Elementary',  // NOT in allowlist
+    }));
+  });
+
+  test('COPPA-3: child CREATE fails with forbidden field "chosen_guide_name"', async () => {
+    const db = authedDb(testEnv, PARENT_UID);
+    await assertFails(db.doc('children/new-child-coppa-3c').set({
+      displayName: 'Custom Guide Child',
+      linkedParent: PARENT_UID,
+      linkedTherapist: THERAPIST_UID,
+      ...KWS_CONSENT,
+      chosen_guide_name: 'Friendbird',  // Guide Bird permanently 'Chipper'
+    }));
+  });
+
+  test('COPPA-3: child CREATE succeeds with allowlist-only fields', async () => {
+    const db = authedDb(testEnv, PARENT_UID);
+    await assertSucceeds(db.doc('children/new-child-coppa-3d').set({
+      displayName: 'Allowlist-Clean Child',
+      linkedParent: PARENT_UID,
+      linkedTherapist: THERAPIST_UID,
+      ...KWS_CONSENT,
+      date_of_birth: '2018-05-15',
+      gender: 'girl',
+      current_module_id: 'M1',
+      current_phase: 'intro',
+      consent_scope: ['elevenlabs_tts', 'therapist_progress_view'],
+    }));
+  });
+
+  test('COPPA-4 (LD-218): parent CANNOT update retention_clock_started_at', async () => {
+    const db = authedDb(testEnv, PARENT_UID);
+    await assertFails(db.doc(`children/${CHILD_ID}`).update({
+      retention_clock_started_at: new Date().toISOString(),
+    }));
+  });
+
+  test('COPPA-1: parent CANNOT flip parental_consent_verified=false post-creation', async () => {
+    const db = authedDb(testEnv, PARENT_UID);
+    await assertFails(db.doc(`children/${CHILD_ID}`).update({
+      parental_consent_verified: false,
+    }));
+  });
+
+  test('COPPA-1: parent CANNOT change kws_parent_id post-creation', async () => {
+    const db = authedDb(testEnv, PARENT_UID);
+    await assertFails(db.doc(`children/${CHILD_ID}`).update({
+      kws_parent_id: 'kws-different',
     }));
   });
 });
