@@ -41,6 +41,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: "mindfulnest",
   plugins: [
     "expo-router",
+    "expo-video",
     ...(isProduction ? [] : ["./plugins/withDevTelemetryServer"]),
   ],
   extra: {
