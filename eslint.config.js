@@ -24,6 +24,10 @@ const BANNED_PATTERNS = [
   { group: ["phaser"], message: "Phaser banned — deferred to V2 per LD-128 ANIMATION_STACK_V1_PATH_D_v2." },
   { group: ["react-native-spine", "react-native-spine/*"], message: "react-native-spine banned — LD-128 Path D v2 uses MP4 loops, not Spine." },
   { group: ["@capacitor/*"], message: "Capacitor banned — conflicts with Expo stack per LD-86." },
+  {
+    group: ["firebase/auth"],
+    message: "Import signIn/signUp/subscribeAuth/etc. from src/services/auth.ts instead. Only src/services/{firebase,auth}.ts may import firebase/auth directly (preflight 78 wrapper discipline).",
+  },
 ];
 
 module.exports = [
