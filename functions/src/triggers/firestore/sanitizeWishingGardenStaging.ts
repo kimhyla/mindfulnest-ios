@@ -7,7 +7,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { sanitizeAgainstSchema } from '../../lib/sanitize/sanitizeAgainstSchema';
-import { writeAuditEntry } from '../../lib/audit/log';
+import { writeAudit } from '../../lib/audit/log';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -33,13 +33,17 @@ export const sanitizeWishingGardenStaging = onDocumentCreated(
           violations: result.violations.map((v) => ({ kind: v.kind, field: v.field, detail: v.detail ?? null })),
         },
       });
-      await writeAuditEntry(db, {
-        actor,
-        action: 'wishing_garden_sanitize_rejected',
-        collection: 'wishing_garden_entries',
-        docId: stagingId,
-        extra: { violation_count: result.violations.length },
-      });
+      await writeAudit(
+        { kind: 'db', db },
+        {
+          actor,
+          action: 'wishing_garden_sanitize_rejected',
+          collection: 'wishing_garden_entries',
+          docId: stagingId,
+          childId: actor !== 'unknown' ? actor : null,
+          extra: { violation_count: result.violations.length },
+        },
+      );
       return;
     }
 
@@ -51,11 +55,15 @@ export const sanitizeWishingGardenStaging = onDocumentCreated(
         canonical_id: stagingId,
       },
     });
-    await writeAuditEntry(db, {
-      actor,
-      action: 'wishing_garden_sanitize_ok',
-      collection: 'wishing_garden_entries',
-      docId: stagingId,
-    });
+    await writeAudit(
+      { kind: 'db', db },
+      {
+        actor,
+        action: 'wishing_garden_sanitize_ok',
+        collection: 'wishing_garden_entries',
+        docId: stagingId,
+        childId: actor !== 'unknown' ? actor : null,
+      },
+    );
   },
 );

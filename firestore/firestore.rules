@@ -34,6 +34,13 @@ rules_version = '2';
 //       - completionLog CREATE: check removed (resource.data null + fields don't exist on subcoll)
 //       - Locked decision: PROTECTED_FIELD_IMMUTABILITY_PATTERN (Directus id=125)
 //       - LD-122 modified: UPDATE-only scope (Kim-approved April 16, 2026)
+//   v8 — S3-POLISH-audit /audit_logs parent + therapist read rules (April 18, 2026)
+//     LD-221 formalized; LD-223 parent-portal prerequisite.
+//     /audit_logs: parent reads rows where resource.data.childId is a linked
+//       child; linked therapist can read rows for their linked children.
+//       Orphan/system events (childId == null) remain admin-SDK-only.
+//       All writes continue admin-SDK-only (CFs via Admin SDK bypass rules).
+//     Preflight: prod_preflight_reviews id=74.
 //   v7 — S3-FS-rules-v7 non-Pattern-C collections (April 18, 2026)
 //     LD-225 data minimization + LD-226 parent-child nesting applied to:
 //     /sessions: client write from parent on linked child; strict hasOnly +
@@ -426,8 +433,16 @@ service cloud.firestore {
     }
 
     match /audit_logs/{entryId} {
-      // Admin-SDK only. Auditor access via Firestore Console / Cloud SQL export.
-      allow read, write: if false;
+      // v8: CF-only writes retained; reads scoped to linked parent or therapist
+      // when the row carries a non-null childId. Orphan rows (childId == null)
+      // stay opaque to clients (parent signup, therapist invite, system events).
+      allow read: if isAuthenticated()
+        && resource.data.childId != null
+        && (
+          (isParent() && isChildsParent(resource.data.childId))
+          || (isTherapist() && isChildsTherapist(resource.data.childId))
+        );
+      allow write: if false;
     }
 
     // ─── Session + CRI assessment + therapist summaries (v7) ───────

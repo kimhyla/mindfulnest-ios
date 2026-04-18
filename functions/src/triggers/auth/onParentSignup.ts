@@ -22,7 +22,7 @@ import { auth as v1Auth } from 'firebase-functions/v1';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
-import { writeAuditEntry } from '../../lib/audit/log';
+import { writeAudit } from '../../lib/audit/log';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -57,10 +57,14 @@ export const onParentSignup = v1Auth
         { merge: true },
       );
 
-    await writeAuditEntry(db, {
-      actor: uid,
-      action: 'parent_signup',
-      collection: 'parents',
-      docId: uid,
-    });
+    await writeAudit(
+      { kind: 'db', db },
+      {
+        actor: uid,
+        action: 'parent_signup',
+        collection: 'parents',
+        docId: uid,
+        childId: null, // orphan event — no child yet
+      },
+    );
   });
