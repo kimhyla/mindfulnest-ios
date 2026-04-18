@@ -1,0 +1,30 @@
+{
+  "name": "mindfulnest-functions",
+  "version": "0.0.1",
+  "private": true,
+  "description": "MindfulNest Firebase Cloud Functions (v2). See Production/ for governance. LD-208 Doppler for secrets; LD-171/164/165/217/218/219/221 for per-function constraints.",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "lint": "eslint 'src/**/*.ts' --max-warnings 0",
+    "lint:fix": "eslint 'src/**/*.ts' --fix",
+    "clean": "rm -rf lib",
+    "serve": "npm run build && firebase emulators:start --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "eslint": "^9.39.4",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.58.2"
+  }
+}

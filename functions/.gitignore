@@ -1,0 +1,11 @@
+node_modules/
+lib/
+.runtimeconfig.json
+.env
+.env.*
+.secret.local
+service-account*.json
+*-key.json
+.firebase/
+*.log
+.DS_Store

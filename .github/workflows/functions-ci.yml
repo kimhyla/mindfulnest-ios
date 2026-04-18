@@ -1,0 +1,39 @@
+name: functions-ci
+on:
+  pull_request:
+    paths:
+      - 'functions/**'
+      - 'firebase.json'
+      - '.github/workflows/functions-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'functions/**'
+      - 'firebase.json'
+      - '.github/workflows/functions-ci.yml'
+
+jobs:
+  lint-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.11.0'
+          cache: 'npm'
+          cache-dependency-path: functions/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build (tsc)
+        run: npm run build
+      - name: Verify build output exists
+        run: test -f lib/index.js
+      # Real deploy validation (firebase deploy --only functions --dry-run) is
+      # deferred to S3-CF-project-bootstrap row — requires Firebase project +
+      # v2 IAM role bundle + SA credentials. See LD-228
+      # SHORTCUT_CF_INIT_NO_REAL_DEPLOY_VALIDATION.
