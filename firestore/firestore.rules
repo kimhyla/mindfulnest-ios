@@ -34,6 +34,24 @@ rules_version = '2';
 //       - completionLog CREATE: check removed (resource.data null + fields don't exist on subcoll)
 //       - Locked decision: PROTECTED_FIELD_IMMUTABILITY_PATTERN (Directus id=125)
 //       - LD-122 modified: UPDATE-only scope (Kim-approved April 16, 2026)
+//   v7 — S3-FS-rules-v7 non-Pattern-C collections (April 18, 2026)
+//     LD-225 data minimization + LD-226 parent-child nesting applied to:
+//     /sessions: client write from parent on linked child; strict hasOnly +
+//       type gates + endedAt >= startedAt. NOT Pattern C (no free-text/PII).
+//       coins_awarded field owned by S3-CF-coin-txn (not in allowlist here).
+//     /clq_responses: therapist-only create, administered_by == auth.uid,
+//       hasOnly top-level (LD-225). Parent + therapist can read own child's.
+//       Nested `responses` map stays opaque — CLQ instrument schema locked
+//       by a separate LD once CRI CLQ spec is canonicalized.
+//     /gpr_entries: append-only. Parent OR therapist create on linked child.
+//       progress_delta is number (no fabricated bounds — CRI GPR spec LD pending).
+//       Corrections = new entry referencing prior (no updates).
+//     /therapist_summaries/{childId}: CF-only write, therapist read via
+//       direct isChildsTherapist(childId) — NO denormalized linkedTherapistIds
+//       array (kept simple — one less invariant to maintain).
+//     Preflight: prod_preflight_reviews id=62. 4+4 Phase 0; 11 CRITICAL +
+//     3 HIGH counter-findings addressed; scope trimmed (no helper extraction,
+//     no file renames, no coverage manifest change — each deferred to own row).
 //   v6 — S3-CF-sanitize Pattern C staging-relay (April 18, 2026)
 //     LD-171 FIRESTORE_FIELD_LEVEL_SANITIZATION_VIA_CLOUD_FUNCTION
 //     /zap_staging + /wishing_garden_staging: client writes only by auth'd parent
@@ -410,6 +428,85 @@ service cloud.firestore {
     match /audit_logs/{entryId} {
       // Admin-SDK only. Auditor access via Firestore Console / Cloud SQL export.
       allow read, write: if false;
+    }
+
+    // ─── Session + CRI assessment + therapist summaries (v7) ───────
+    //
+    // Direct client writes for sessions/clq_responses/gpr_entries (no Pattern C
+    // relay — content has no PII/free-text to sanitize). therapist_summaries
+    // is CF-written via admin SDK (S3-CF-therapist-summary, LD-165).
+    //
+    // Preflight: prod_preflight_reviews id=62.
+
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated()
+        && (
+          (isParent() && isChildsParent(resource.data.childId))
+          || (isTherapist() && isChildsTherapist(resource.data.childId))
+        );
+      allow create: if isAuthenticated()
+        && isParent()
+        && isChildsParent(request.resource.data.childId)
+        && request.resource.data.keys().hasAll(['childId', 'startedAt', 'endedAt'])
+        && request.resource.data.keys().hasOnly(
+             ['childId', 'moduleId', 'phase', 'startedAt', 'endedAt', 'completionStatus'])
+        && request.resource.data.startedAt is timestamp
+        && request.resource.data.endedAt is timestamp
+        && request.resource.data.endedAt >= request.resource.data.startedAt
+        && (
+          !('completionStatus' in request.resource.data)
+          || request.resource.data.completionStatus in ['in_progress', 'completed', 'abandoned']
+        );
+      // Append-only; coin-txn and summary CFs read, never mutate.
+      allow update, delete: if false;
+    }
+
+    match /clq_responses/{docId} {
+      allow read: if isAuthenticated()
+        && (
+          (isParent() && isChildsParent(resource.data.childId))
+          || (isTherapist() && isChildsTherapist(resource.data.childId))
+        );
+      allow create: if isAuthenticated()
+        && isTherapist()
+        && isChildsTherapist(request.resource.data.childId)
+        && request.auth.uid == request.resource.data.administered_by
+        && request.resource.data.keys().hasAll(['childId', 'administered_at', 'administered_by'])
+        && request.resource.data.keys().hasOnly(
+             ['childId', 'administered_at', 'administered_by', 'responses', 'is_baseline']);
+      // Clinical record immutable. Amendments pattern (if needed) ships separately.
+      allow update, delete: if false;
+    }
+
+    match /gpr_entries/{entryId} {
+      allow read: if isAuthenticated()
+        && (
+          (isParent() && isChildsParent(resource.data.childId))
+          || (isTherapist() && isChildsTherapist(resource.data.childId))
+        );
+      allow create: if isAuthenticated()
+        && (
+          (isParent() && isChildsParent(request.resource.data.childId))
+          || (isTherapist() && isChildsTherapist(request.resource.data.childId))
+        )
+        && request.resource.data.keys().hasAll(['childId', 'recorded_at'])
+        && request.resource.data.keys().hasOnly(
+             ['childId', 'recorded_at', 'goal_id', 'progress_delta', 'notes'])
+        && (
+          !('progress_delta' in request.resource.data)
+          || request.resource.data.progress_delta is number
+        );
+      // Append-only — corrections = new entry referencing prior.
+      allow update, delete: if false;
+    }
+
+    match /therapist_summaries/{childId} {
+      // Document ID = childId; read if requester is this child's linked therapist.
+      allow read: if isAuthenticated()
+        && isTherapist()
+        && isChildsTherapist(childId);
+      // CF-only writes via admin SDK. All client mutation denied.
+      allow create, update, delete: if false;
     }
 
     // ────────────────────────────────────────────────────────────────
