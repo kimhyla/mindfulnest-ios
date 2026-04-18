@@ -29,3 +29,6 @@ export {
 
 // S3-CF-coin-txn (preflight 71, LD-164 coin/stone via runTransaction):
 export { awardCoinsOnSession } from './triggers/firestore/awardCoinsOnSession';
+
+// S3-TTS-A-render (preflight 82, TTS_APP_RENDER_PATTERN_C_ONCALL_ELEVENLABS_20260418):
+export { renderTtsLine } from './handlers/tts/renderTtsLine';

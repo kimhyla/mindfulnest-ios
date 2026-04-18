@@ -11,7 +11,7 @@
       "LD-226 COPPA_PARENT_CHILD_NESTING_REQUIRED",
       "LD-216 COPPA_VPC_VIA_KWS_ONLY"
     ],
-    "notes": "Field allowlists align with firestore.rules v5 COPPA hardening. Dashboard repos regenerate TypeScript types from this file at build time via scripts/generate-types.ts. CI rejects drift. 2026-04-18: added therapist_summaries for S3-CF-therapist-summary (preflight 69)."
+    "notes": "Field allowlists align with firestore.rules v5 COPPA hardening. Dashboard repos regenerate TypeScript types from this file at build time via scripts/generate-types.ts. CI rejects drift. 2026-04-18: added therapist_summaries for S3-CF-therapist-summary (preflight 69). 2026-04-18: added audio_renders for S3-TTS-A-render (preflight 82)."
   },
   "collections": {
     "children": {
@@ -311,6 +311,44 @@
         "_last_source": "string",
         "childId": "string (FK \u2192 children.id)"
       }
+    },
+    "audio_renders": {
+      "description": "TTS render cache \u2014 one doc per line rendered via renderTtsLine CF. Pattern C path: Storage at /audio/{parentUid}/{childId}/{lineId}.mp3. Admin-SDK writes only (S3-TTS-A-render).",
+      "parent_collection": null,
+      "parent_fk": "childId",
+      "required_fields": [
+        "scriptId",
+        "lineId",
+        "voiceId",
+        "textHash",
+        "childId",
+        "parentUid",
+        "status"
+      ],
+      "allowlist_fields": [
+        "scriptId",
+        "lineId",
+        "voiceId",
+        "textHash",
+        "childId",
+        "parentUid",
+        "status",
+        "storagePath",
+        "durationMs",
+        "byteLength",
+        "startedAt",
+        "renderedAt",
+        "failedAt"
+      ],
+      "status_enum": [
+        "rendering",
+        "rendered",
+        "failed"
+      ],
+      "ld_refs": [
+        "TTS_APP_RENDER_PATTERN_C_ONCALL_ELEVENLABS_20260418"
+      ],
+      "preflight": 82
     }
   }
 }

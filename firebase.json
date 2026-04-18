@@ -15,6 +15,9 @@
   "firestore": {
     "rules": "firestore/firestore.rules"
   },
+  "storage": {
+    "rules": "storage/storage.rules"
+  },
   "functions": [
     {
       "source": "functions",

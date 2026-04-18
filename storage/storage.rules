@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// MindfulNest Firebase Storage Security Rules v1
+// Source: Pattern C path-auth; preflight prod_preflight_reviews id=82.
+// Locked decision: TTS_APP_RENDER_PATTERN_C_ONCALL_ELEVENLABS_20260418.
+//
+// Auth model:
+//   - Paths under /audio/{parentUid}/** are owned by the parent with that UID.
+//   - Cloud Functions using Admin SDK bypass these rules — that is the ONLY
+//     write path for /audio/**. Clients never write to Storage.
+//   - Default-deny: every path not matched here is denied to clients.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // TTS-rendered audio. Path shape: /audio/{parentUid}/{childId}/{lineId}.mp3
+    // Clients never write here — Cloud Function renderTtsLine (admin SDK) owns
+    // all writes. Read is scoped to the owning parent.
+    match /audio/{parentUid}/{childId}/{lineId} {
+      allow read: if request.auth != null && request.auth.uid == parentUid;
+      allow write: if false;
+    }
+
+    // Default: deny all other paths (explicit for clarity; rules default-deny
+    // already but the comment matters for future auditors).
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

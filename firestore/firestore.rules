@@ -445,6 +445,26 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ─── TTS render cache (S3-TTS-A-render, preflight 82) ──────────
+    //
+    // audio_renders/{lineId}: CF-only writes (renderTtsLine via admin SDK).
+    // Parent reads their own child's render metadata (status + storagePath)
+    // so the client hook can decide whether to re-request on failure.
+    // tts_render_quota/{childId}_{YYYYMMDD}: CF-only; no client read/write.
+    //   Per-child daily cap enforced in-txn in renderTtsLine.
+    match /audio_renders/{lineId} {
+      allow read: if isAuthenticated()
+        && (
+          (isParent() && resource.data.childId is string && isChildsParent(resource.data.childId))
+          || (isTherapist() && resource.data.childId is string && isChildsTherapist(resource.data.childId))
+        );
+      allow create, update, delete: if false;
+    }
+
+    match /tts_render_quota/{quotaId} {
+      allow read, write: if false;
+    }
+
     // ─── Session + CRI assessment + therapist summaries (v7) ───────
     //
     // Direct client writes for sessions/clq_responses/gpr_entries (no Pattern C
