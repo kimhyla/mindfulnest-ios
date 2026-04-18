@@ -13,3 +13,7 @@ setGlobalOptions({ region: 'us-central1' });
 // S3-CF-sanitize (preflight 61, LD-171, Pattern C staging-relay):
 export { sanitizeZapStaging } from './triggers/firestore/sanitizeZapStaging';
 export { sanitizeWishingGardenStaging } from './triggers/firestore/sanitizeWishingGardenStaging';
+
+// S3-AUTH-firebase (preflight 66, server-side piece):
+export { onParentSignup } from './triggers/auth/onParentSignup';
+export { claimTherapistInvite } from './triggers/https/claimTherapistInvite';
