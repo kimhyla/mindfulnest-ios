@@ -13,7 +13,13 @@
     "web": "expo start --web",
     "test:rules": "PATH=\"$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home/bin:$PATH\" firebase emulators:exec --only firestore 'jest --config firestore/jest.config.firestore.js'",
     "lint": "eslint . --max-warnings 0",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --max-warnings 0"
+    ]
   },
   "dependencies": {
     "expo": "~54.0.33",
@@ -42,7 +48,9 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "expo-mcp": "~0.2.1",
+    "husky": "^9.1.7",
     "jest": "^30.3.0",
+    "lint-staged": "^15.5.2",
     "ts-jest": "^29.4.9",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.58.2"
