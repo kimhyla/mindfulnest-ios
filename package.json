@@ -12,6 +12,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test:rules": "PATH=\"$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home/bin:$PATH\" firebase emulators:exec --only firestore 'jest --config firestore/jest.config.firestore.js'",
+    "test:storage-rules": "PATH=\"$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home/bin:$PATH\" firebase emulators:exec --only storage 'jest --config storage/jest.config.storage.js'",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "prepare": "husky || exit 0"

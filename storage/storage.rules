@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// MindfulNest Firebase Storage Security Rules v1
+// Source: S3-POLISH-cdn preflight 77.
+//
+// Architecture: Pattern C path-auth. Storage rules CANNOT call firestore.get(),
+// so helpers like isChildsParent(childId) used in firestore.rules don't port
+// here. Instead, child-scoped assets are placed under a path segment that
+// includes the parent's UID; the rule compares request.auth.uid against that
+// path segment.
+//
+// Bucket structure:
+//   /audio/{parentUid}/{childId}/{assetId}      — per-child ElevenLabs TTS (LD-166/168)
+//   /public/{assetId}                            — universal assets (module music, sfx)
+//   /visuals/{module}/{assetId}                  — Seedance/Kling MP4s + FLUX stills
+//   /thumbs/{assetId}                            — shared decorative thumbnails
+//
+// All writes are admin-SDK only (CFs bypass rules). Deploy via:
+//   firebase deploy --only storage --project mindfulnestkids
+//
+// LD-273 defers therapist-scoped audio access (signed URLs or custom claims)
+// to a follow-up row before the therapist dashboard ships.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Per-child audio — parent's UID in path segment is the auth gate.
+    // Child has no Firebase Auth (LD-226); parent launches app and streams on
+    // their behalf. Other parents cannot read (their UID doesn't match path).
+    match /audio/{parentUid}/{childId}/{assetId=**} {
+      allow read: if request.auth != null
+        && request.auth.uid == parentUid;
+      allow write: if false;  // CF admin SDK only
+    }
+
+    // Public universal assets — any authenticated user can read.
+    match /public/{assetId=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Visual assets for module content — authenticated-read, admin-write.
+    match /visuals/{module}/{assetId=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Shared decorative thumbnails — authenticated-read only.
+    match /thumbs/{assetId=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Everything else denied by default (default-deny on unmatched paths).
+  }
+}
