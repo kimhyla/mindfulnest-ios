@@ -67,7 +67,7 @@ jobs:
       - name: Run Firestore rules tests (emulator:exec)
         run: |
           firebase emulators:exec --only firestore \
-            'jest --config firestore/jest.config.firestore.js --ci'
+            'npx --no-install jest --config firestore/jest.config.firestore.js --ci'
 
       - name: Upload test output on failure
         if: failure()

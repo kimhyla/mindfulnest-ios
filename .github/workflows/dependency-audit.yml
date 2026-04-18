@@ -43,34 +43,7 @@ jobs:
           node-version: "22.11.0"
 
       - name: Walk full dependency tree for banned packages
-        run: |
-          set -e
-          BANNED_PATTERNS='@sentry/|bugsnag|rollbar|^phaser$|react-native-spine|@capacitor/'
-
-          # Extract every package name from package-lock.json (full tree, not top-level)
-          # packages object in lockfile v3+ has every nested dep keyed by path
-          BANNED_HITS=$(node <<'NODE_SCRIPT'
-            const lock = require('./package-lock.json');
-            const banned = /@sentry\/|bugsnag|rollbar|^phaser$|react-native-spine|@capacitor\//;
-            const hits = [];
-            const packages = lock.packages || {};
-            for (const [path, info] of Object.entries(packages)) {
-              // Skip root package
-              if (path === '') continue;
-              // Extract npm name from path like "node_modules/@sentry/react"
-              const parts = path.split('node_modules/');
-              const name = parts[parts.length - 1];
-              if (banned.test(name)) {
-                hits.push(`${name}@${info.version} (at ${path})`);
-              }
-            }
-            if (hits.length > 0) {
-              console.error('BANNED PACKAGES FOUND:');
-              hits.forEach(h => console.error('  - ' + h));
-              process.exit(1);
-            }
-            console.log('No banned packages in dependency tree.');
-          NODE_SCRIPT
+        run: node scripts/check-banned-packages.mjs
 
   npm-audit:
     name: npm audit (high+ severity)
