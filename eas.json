@@ -30,6 +30,14 @@
       "env": {
         "NODE_ENV": "production"
       }
+    },
+    "production-scan": {
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "ios": {
+        "simulator": true
+      }
     }
   },
   "submit": {

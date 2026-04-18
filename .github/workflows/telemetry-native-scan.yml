@@ -67,19 +67,25 @@ jobs:
       - name: Install eas-cli
         run: npm install -g eas-cli
 
-      - name: Build production iOS .ipa locally
-        # --local builds on the GitHub macOS runner without consuming EAS quota.
-        # --non-interactive prevents prompts. --platform ios is sufficient for
-        # the COPPA / App Store leak-prevention scope.
+      - name: Build iOS simulator binary with production config (NODE_ENV=production)
+        # Uses the 'production-scan' EAS profile: NODE_ENV=production + simulator=true.
+        # Rationale: the scan's purpose (LD-157 Layer 4) is to verify autolinking
+        # exclusion produced a binary with NO dev-telemetry native symbols.
+        # Autolinking runs at prebuild time, BEFORE target-specific (device vs sim)
+        # codegen — if a module was excluded from the build graph, its symbols can't
+        # appear in either architecture. A simulator build with the same NODE_ENV=production
+        # tests the same invariant without requiring an Apple Developer Distribution
+        # Certificate (paid, requires interactive eas credentials provisioning).
+        # --local builds on the GitHub macOS runner, consumes no EAS cloud quota.
         run: |
           eas build \
-            --profile production \
+            --profile production-scan \
             --platform ios \
             --local \
             --non-interactive \
-            --output ./mindfulnest-production.ipa
+            --output ./mindfulnest-production-scan.tar.gz
 
-      - name: Scan .ipa for forbidden native symbols
+      - name: Scan simulator binary for forbidden native symbols
         # Symbols specific to react-native-http-bridge-refurbished's iOS impl:
         #   RCTHttpServer  — the RN module class
         #   HTTPBridge / RCTHTTPBridge — older naming variants, defensive
@@ -88,18 +94,19 @@ jobs:
         # should appear in the binary. ANY match = production leak.
         run: |
           set -eo pipefail
-          if [ ! -f mindfulnest-production.ipa ]; then
-            echo "::error::Production .ipa not found at mindfulnest-production.ipa"
+          if [ ! -f mindfulnest-production-scan.tar.gz ]; then
+            echo "::error::Simulator build archive not found at mindfulnest-production-scan.tar.gz"
             exit 1
           fi
-          # Unpack the .ipa (it's a zip)
-          rm -rf ./ipa-extract
-          unzip -q mindfulnest-production.ipa -d ./ipa-extract
+          # Unpack the simulator archive (.tar.gz containing MindfulNest.app)
+          rm -rf ./sim-extract
+          mkdir -p ./sim-extract
+          tar -xzf mindfulnest-production-scan.tar.gz -C ./sim-extract
           # Find the .app bundle's main binary
-          BIN=$(find ./ipa-extract/Payload -type f -perm +111 -name 'MindfulNest' -not -path '*/Frameworks/*' | head -n 1)
+          BIN=$(find ./sim-extract -type f -perm +111 -name 'MindfulNest' -not -path '*/Frameworks/*' | head -n 1)
           if [ -z "$BIN" ]; then
-            echo "::error::Could not locate main app binary in .ipa"
-            ls -la ./ipa-extract/Payload/
+            echo "::error::Could not locate main app binary in simulator archive"
+            find ./sim-extract -maxdepth 3 -type f | head -20
             exit 1
           fi
           echo "Scanning $BIN ..."
