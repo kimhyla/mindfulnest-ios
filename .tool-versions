@@ -1,0 +1,8 @@
+# MindfulNest — version pins (asdf/mise compatible)
+# Authoritative source: content-lockfiles/platform_versions.json in Dropbox project folder
+# Update this file ONLY by also updating platform_versions.json (keep in sync)
+
+nodejs 22.11.0
+python 3.9.6
+java openjdk-21.0.10
+ruby system
