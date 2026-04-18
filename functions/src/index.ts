@@ -26,3 +26,6 @@ export {
   summaryOnClqWritten,
   summaryOnGprWritten,
 } from './triggers/firestore/recomputeTherapistSummary';
+
+// S3-CF-coin-txn (preflight 71, LD-164 coin/stone via runTransaction):
+export { awardCoinsOnSession } from './triggers/firestore/awardCoinsOnSession';
