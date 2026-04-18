@@ -121,7 +121,7 @@ export function initDevTelemetry(): void {
   if (!__DEV__) return;
   currentState = { ...DEFAULT_STATE };
   publishToGlobals();
-  // eslint-disable-next-line no-console
+   
   console.log("[DevTelemetry] Initialized — window.__MINDFULNEST_DEV__ available");
 }
 

@@ -67,7 +67,7 @@ function requireAuth(req: { url: string }): boolean {
 
 export async function startDevTelemetryServer(): Promise<boolean> {
   if (!safetyGatesPass()) {
-    // eslint-disable-next-line no-console
+     
     console.log(
       "[DevTelemetryServer] safety gate blocked startup — correct in production builds."
     );
@@ -76,11 +76,11 @@ export async function startDevTelemetryServer(): Promise<boolean> {
   if (server) return true;
 
   authToken = Crypto.randomUUID();
-  // eslint-disable-next-line no-console
+   
   console.log(
     `[DevTelemetryServer] auth token (this launch only): ${authToken}`
   );
-  // eslint-disable-next-line no-console
+   
   console.log(
     `[DevTelemetryServer] usage: curl -H "Authorization: Bearer ${authToken}" http://127.0.0.1:${DEFAULT_PORT}/state  (after \`iproxy ${DEFAULT_PORT} ${DEFAULT_PORT}\` on Mac)`
   );
@@ -140,7 +140,7 @@ export async function startDevTelemetryServer(): Promise<boolean> {
 
   bridge.listen(DEFAULT_PORT);
   server = bridge;
-  // eslint-disable-next-line no-console
+   
   console.log(
     `[DevTelemetryServer] listening on port ${DEFAULT_PORT}. Mac: iproxy ${DEFAULT_PORT} ${DEFAULT_PORT} → http://127.0.0.1:${DEFAULT_PORT}`
   );
