@@ -1,5 +1,5 @@
 // GENERATED — DO NOT EDIT.
-// source: content-lockfiles/firestore_schema.json sha256=cdd269d167c2c2eaa7365dc9e216e2bf4c2f1f265cb8733a79c525e135a048e9
+// source: content-lockfiles/firestore_schema.json sha256=a4df7ff5fe8c46cafc398965994138082d422c8723305e87f6606232d4390f2f
 // Regenerate via: node functions/scripts/gen-schema-lists.mjs
 
 export interface CollectionFieldLists {
@@ -9,6 +9,7 @@ export interface CollectionFieldLists {
 }
 
 export type CollectionName =
+  | "audio_renders"
   | "children"
   | "clq_responses"
   | "coach_conversations"
@@ -24,6 +25,11 @@ export type CollectionName =
   | "zaps";
 
 export const FIRESTORE_FIELD_LISTS: Readonly<Record<CollectionName, CollectionFieldLists>> = {
+  "audio_renders": {
+    allowlist: ["byteLength", "childId", "durationMs", "failedAt", "lineId", "parentUid", "renderedAt", "scriptId", "startedAt", "status", "storagePath", "textHash", "voiceId"],
+    forbidden: [],
+    required: ["childId", "lineId", "parentUid", "scriptId", "status", "textHash", "voiceId"],
+  },
   "children": {
     allowlist: ["chatEnabled", "completions", "consent_scope", "consent_status", "created_at", "current_checkpoint_id", "current_module_id", "current_phase", "date_of_birth", "displayName", "domainSessionCounts", "engagementStatus", "gender", "inactivityNotifiedAt", "kws_parent_id", "lastActivityAt", "last_session_timestamp", "linkedParent", "linkedTherapist", "parentNotifiedSkills", "parental_consent_source", "parental_consent_verified", "preferredTechniques", "retention_clock_started_at", "sessionsThisWeek", "therapistFirstCompletionNotified", "totalSessions", "updated_at", "voice_cache_ids", "weekStartDate"],
     forbidden: ["address", "avatar_image", "childEmail", "child_email", "chosen_guide_name", "clinical_notes", "clq_score", "device_fingerprint", "device_id", "diagnosis", "email", "gpr_score", "ip_address", "ip_logs", "last_name", "phone", "photo_url", "school"],

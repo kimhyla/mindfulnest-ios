@@ -29,6 +29,8 @@ const TEXT_FIELDS_BY_COLLECTION: Record<CollectionName, readonly string[]> = {
   // CF-only write; sanitizeAgainstSchema is never called on it, but keys
   // must exhaustively cover CollectionName.
   therapist_summaries: [],
+  // CF-only write (renderTtsLine). No client-writable text fields.
+  audio_renders: [],
 };
 
 export function sanitizeAgainstSchema(
