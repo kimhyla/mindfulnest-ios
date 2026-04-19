@@ -1,5 +1,5 @@
 // GENERATED — DO NOT EDIT.
-// source: content-lockfiles/firestore_schema.json sha256=cdd269d167c2c2eaa7365dc9e216e2bf4c2f1f265cb8733a79c525e135a048e9
+// source: content-lockfiles/firestore_schema.json sha256=62262f4756a89a7a8bb119974d1a6a0448350803dd3528bf622d240e2b149c62
 // Regenerate via: node functions/scripts/gen-schema-lists.mjs
 
 export interface CollectionFieldLists {
@@ -25,7 +25,7 @@ export type CollectionName =
 
 export const FIRESTORE_FIELD_LISTS: Readonly<Record<CollectionName, CollectionFieldLists>> = {
   "children": {
-    allowlist: ["chatEnabled", "completions", "consent_scope", "consent_status", "created_at", "current_checkpoint_id", "current_module_id", "current_phase", "date_of_birth", "displayName", "domainSessionCounts", "engagementStatus", "gender", "inactivityNotifiedAt", "kws_parent_id", "lastActivityAt", "last_session_timestamp", "linkedParent", "linkedTherapist", "parentNotifiedSkills", "parental_consent_source", "parental_consent_verified", "preferredTechniques", "retention_clock_started_at", "sessionsThisWeek", "therapistFirstCompletionNotified", "totalSessions", "updated_at", "voice_cache_ids", "weekStartDate"],
+    allowlist: ["chatEnabled", "completions", "consent_scope", "consent_status", "created_at", "current_checkpoint_id", "current_module_id", "current_phase", "date_of_birth", "displayName", "domainSessionCounts", "engagementStatus", "gender", "inactivityNotifiedAt", "kws_parent_id", "lastActivityAt", "last_session_timestamp", "linkedParent", "linkedTherapist", "parentNotifiedSkills", "parental_consent_source", "parental_consent_verified", "preferredTechniques", "retention_clock_started_at", "sessionsThisWeek", "therapistFirstCompletionNotified", "totalSessions", "updated_at", "weekStartDate"],
     forbidden: ["address", "avatar_image", "childEmail", "child_email", "chosen_guide_name", "clinical_notes", "clq_score", "device_fingerprint", "device_id", "diagnosis", "email", "gpr_score", "ip_address", "ip_logs", "last_name", "phone", "photo_url", "school"],
     required: ["displayName", "kws_parent_id", "linkedParent", "linkedTherapist", "parental_consent_source", "parental_consent_verified"],
   },

@@ -357,7 +357,7 @@ describe('Child create rules (BS1b + v5 COPPA)', () => {
       gender: 'girl',
       current_module_id: 'M1',
       current_phase: 'intro',
-      consent_scope: ['elevenlabs_tts', 'therapist_progress_view'],
+      consent_scope: ['therapist_progress_view'],  // 'elevenlabs_tts' removed 2026-04-18 per LD-281 NO_RUNTIME_TTS_PERSONALIZATION_V1
     }));
   });
 
