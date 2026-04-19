@@ -37,8 +37,9 @@ export const SESSION_STATE_SCHEMA_VERSION = 1;
 
 export type ResumeMode = 'prompt' | 'silent-resume' | 'silent-zero';
 
+// Default per MODULE_EXIT_AND_PROGRESSION_V1 — crash-resume is silent; explicit menu/Restart buttons remain child-authored
 /** Kim-flippable default — see file header. */
-export const RESUME_MODE: ResumeMode = 'prompt';
+export const RESUME_MODE: ResumeMode = 'silent-resume';
 
 export type ModulePhase = 'phase_a' | 'phase_b' | 'resolution';
 
