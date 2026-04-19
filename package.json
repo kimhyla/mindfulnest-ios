@@ -14,7 +14,8 @@
     "test:rules": "PATH=\"$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home/bin:$PATH\" firebase emulators:exec --only firestore 'jest --config firestore/jest.config.firestore.js'",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
-    "prepare": "husky || exit 0"
+    "prepare": "husky || exit 0",
+    "test": "jest --config jest.config.js"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -22,10 +23,13 @@
     ]
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~54.0.33",
+    "expo-audio": "~1.1.1",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.8",
     "expo-dev-client": "~6.0.20",
+    "expo-file-system": "~19.0.21",
     "expo-linking": "~8.0.11",
     "expo-router": "~6.0.23",
     "expo-status-bar": "~3.0.9",

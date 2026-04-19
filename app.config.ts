@@ -42,6 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     "expo-router",
     "expo-video",
+    "expo-audio",
     ...(isProduction ? [] : ["./plugins/withDevTelemetryServer"]),
   ],
   extra: {
