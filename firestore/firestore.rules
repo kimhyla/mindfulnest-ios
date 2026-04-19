@@ -546,5 +546,18 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['status', 'claimedByParent', 'childId', 'claimedAt']);
     }
+
+    // ────────────────────────────────────────────────────────────────
+    // /stripe_events/{eventId}
+    // LD-290 STRIPE_IDEMPOTENCY_KEY_V1 (overnight 2026-04-19) — webhook
+    // dedup ledger. Cloud Functions (Admin SDK) write here to ensure each
+    // Stripe event is processed exactly once across at-least-once delivery.
+    // Clients MUST NOT read or write this collection: it carries no
+    // user-actionable data and revealing it would leak payment-event
+    // timing. Cloud Functions bypass these rules via the Admin SDK.
+    // ────────────────────────────────────────────────────────────────
+    match /stripe_events/{eventId} {
+      allow read, write: if false;
+    }
   }
 }

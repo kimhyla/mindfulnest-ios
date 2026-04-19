@@ -29,3 +29,8 @@ export {
 
 // S3-CF-coin-txn (preflight 71, LD-164 coin/stone via runTransaction):
 export { awardCoinsOnSession } from './triggers/firestore/awardCoinsOnSession';
+
+// LD-290 STRIPE_IDEMPOTENCY_KEY_V1 (overnight 2026-04-19):
+// Webhook dedup via Firestore stripe_events/{event.id} transaction.
+// Committed but NOT deployed — see triggers/https/stripeWebhook.ts header.
+export { stripeWebhook } from './triggers/https/stripeWebhook';
