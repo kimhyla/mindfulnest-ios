@@ -29,3 +29,8 @@ export {
 
 // S3-CF-coin-txn (preflight 71, LD-164 coin/stone via runTransaction):
 export { awardCoinsOnSession } from './triggers/firestore/awardCoinsOnSession';
+
+// S3-PAY-stripe (preflight 115, LD-290 STRIPE_IDEMPOTENCY_KEY_V1 id=300):
+//   Two-clause idempotency — outbound Stripe-Idempotency-Key per
+//   ${childId}:${sku}:${attemptSeq}, inbound stripe_events dedup transaction.
+export { stripeWebhook } from './triggers/https/stripeWebhook';
