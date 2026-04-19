@@ -49,6 +49,16 @@ jobs:
     env:
       EAS_BUILD_PROFILE: development
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      # Raise Maestro XCTest driver-startup timeout from 120000ms default to 300000ms (5 min).
+      # Primary-source evidence: Maestro 2.4.0 error message names this env var; source
+      # code LocalXCTestInstaller.kt reads System.getenv(MAESTRO_DRIVER_STARTUP_TIMEOUT)
+      # with default SERVER_LAUNCH_TIMEOUT_MS=120000L. Observed failures on macos-15-arm64
+      # runner (runs 24633845948 PR #16, 24618316745 auth branch) timed out at ~162s —
+      # exactly matches 120s default. Same runner image + same Maestro version had
+      # succeeded ~13h earlier on same branch, so cause is transient XCTest driver
+      # cold-start variance on arm64 cloud VMs. Raising ceiling is safe: timeout only
+      # fires if driver genuinely fails to install; healthy runs proceed immediately.
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: "300000"
 
     steps:
       - name: Verify gate env vars
