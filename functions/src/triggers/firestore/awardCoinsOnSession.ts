@@ -22,6 +22,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { computeAwards } from '../../lib/coins/computeAwards';
+import { writeAudit } from '../../lib/audit/log';
 import {
   MODULE_IDS,
   PHASES,
@@ -106,21 +107,22 @@ export const awardCoinsOnSession = onDocumentCreated(
       }
       txn.update(childRef, childUpdates);
 
-      const auditRef = db.collection('audit_logs').doc();
-      txn.create(auditRef, {
-        ts: FieldValue.serverTimestamp(),
-        actor: 'system_cf',
-        action: awards.stoneAwarded ? 'coin_and_stone_awarded' : 'coin_awarded',
-        collection: 'coin_ledger',
-        docId: sessionId,
-        extra: {
+      await writeAudit(
+        { kind: 'txn', db, txn },
+        {
+          actor: 'system_cf',
+          action: awards.stoneAwarded ? 'coin_and_stone_awarded' : 'coin_awarded',
+          collection: 'coin_ledger',
+          docId: sessionId,
           childId,
-          moduleId,
-          phase,
-          coin_delta: awards.coinDelta,
-          stone_awarded: awards.stoneAwarded ?? null,
+          extra: {
+            moduleId,
+            phase,
+            coin_delta: awards.coinDelta,
+            stone_awarded: awards.stoneAwarded ?? null,
+          },
         },
-      });
+      );
     });
   },
 );

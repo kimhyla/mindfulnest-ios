@@ -9,7 +9,7 @@
 import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { computeSummaryFromCounts, summariesEqual, type SourceCounts } from './computeSummary';
 import { assertSummaryShape, type SummarySource, type TherapistSummary } from './types';
-import { writeAuditEntry } from '../audit/log';
+import { writeAudit } from '../audit/log';
 
 const DAY_MS = 86_400_000;
 const WEEK_MS = 7 * DAY_MS;
@@ -137,12 +137,16 @@ export async function recomputeSummary(
   }
 
   await ref.set(target);
-  await writeAuditEntry(db, {
-    actor: 'system_cf',
-    action: 'therapist_summary_written',
-    collection: 'therapist_summaries',
-    docId: childId,
-    extra: { source },
-  });
+  await writeAudit(
+    { kind: 'db', db },
+    {
+      actor: 'system_cf',
+      action: 'therapist_summary_written',
+      collection: 'therapist_summaries',
+      docId: childId,
+      childId,
+      extra: { source },
+    },
+  );
   return { written: true };
 }
