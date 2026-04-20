@@ -138,7 +138,17 @@ export interface AvatarConfig {
   hairColor: string;    // one of 4 hair color option IDs
 }
 
-/** TTS personalization variables — 8 fields */
+/**
+ * Text-UI personalization variables — 8 fields.
+ *
+ * Per LD-281 NO_RUNTIME_TTS_PERSONALIZATION_V1 (2026-04-18), these fields are
+ * TEXT-UI ONLY (home screen greeting, progress pages, AI Parent Coach chat,
+ * email/push copy). They are NOT spoken in audio — the app ships single-MP4
+ * atomic deliverables with universal phrasing baked in, and never performs
+ * runtime TTS or runtime audio substitution. Pronouns remain available for
+ * text copy like "you meet him" / "she sent you here" where narrative clarity
+ * benefits from them.
+ */
 export interface Personalization {
   childPronoun: "he" | "she";
   childPronounObject: "him" | "her";
@@ -224,9 +234,9 @@ export interface ZapMessage {
 export interface Child {
   // ─── Identity & Onboarding (6) ───
   displayName: string;               // child's real first name
-  guideName: string;                 // Guide Bird name, default "Pip"
+  guideName: string;                 // Guide Bird name, default "Chipper" (per LD-183 lore rename 2026-04-17)
   avatarConfig: AvatarConfig;
-  personalization: Personalization;   // TTS pipeline variables (CDM §Identity, added v1.3)
+  personalization: Personalization;   // Text-UI personalization (pronouns, therapist/parent names) per LD-281 — NOT spoken in audio
   linkedParent: string;
   linkedTherapist: string;
   onboardingComplete: boolean;

@@ -191,7 +191,7 @@ service cloud.firestore {
         'date_of_birth', 'gender',
         // Program state
         'current_module_id', 'current_phase', 'current_checkpoint_id',
-        'voice_cache_ids',
+        // voice_cache_ids REMOVED 2026-04-18 per LD-281 NO_RUNTIME_TTS_PERSONALIZATION_V1 — no per-child audio cache exists (app ships single-MP4 atomic deliverables).
         // Consent (KWS)
         'parental_consent_verified', 'parental_consent_source', 'kws_parent_id',
         'consent_status', 'consent_scope',
