@@ -35,6 +35,7 @@ import {
   saveSessionState,
   type ModulePhase,
 } from '../services/sessionState';
+import { markModuleComplete } from '../services/progressionState';
 
 /** How often to persist playback position during Phase B. */
 export const SAVE_INTERVAL_MS = 5_000;
@@ -134,6 +135,13 @@ export function useModulePlayback(options: UseModulePlaybackOptions): UseModuleP
     });
     const endSub = player.addListener('playToEnd', () => {
       setHasEnded(true);
+      // LD-316 progression gate: a module unlocks the next one ONLY on
+      // expo-video's natural playToEnd. Exit-via-close-button persists
+      // position via sessionState but does NOT advance progression.
+      // markModuleComplete is the SINGLE writer of the per-arc progression
+      // row — colocating it with the playToEnd listener (rather than e.g.
+      // the 5s ticker) is what makes per-arc-keyed progression race-free.
+      void markModuleComplete(arcId, moduleId);
       void clearSessionState(moduleId);
     });
     return () => {

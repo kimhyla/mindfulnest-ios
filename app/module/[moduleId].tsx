@@ -19,6 +19,7 @@ import {
   RESUME_MODE,
   clearSessionState,
   loadSessionState,
+  saveSessionState,
   type SessionState,
 } from '../../src/services/sessionState';
 
@@ -189,10 +190,23 @@ function PlayingSurface(props: PlayingSurfaceProps): ReactElement {
   }, [hasEnded, onClose]);
 
   const handleClose = useCallback(() => {
+    // LD-316 exit-must-persist: capture the position BEFORE flipping the
+    // user-initiated guard. Once the guard is set, the playingChange
+    // listener intentionally skips its own auto-save (it can't tell user
+    // pause from OS interruption otherwise), so this explicit save is the
+    // exit's only chance to persist. saveSessionState is fire-and-forget
+    // — a lost-write of the last <5s of position is the LD-286 acceptable
+    // safety failure mode.
+    void saveSessionState({
+      moduleId,
+      phase: 'phase_b',
+      timestampMs: Date.now(),
+      audioPositionMs: Math.round(player.currentTime * 1000),
+    });
     userInitiatedPauseRef.current = true;
     player.pause();
     onClose();
-  }, [player, userInitiatedPauseRef, onClose]);
+  }, [player, userInitiatedPauseRef, onClose, moduleId]);
 
   return (
     <View style={styles.container} testID="module_screen_playing">
