@@ -1,0 +1,105 @@
+# MindfulNest — Bundle Size Gate
+#
+# Enforces SIZE_BUDGET_V1 + BUNDLE_SIZE_CI_ENFORCEMENT_V1 at every PR + push to main.
+#
+# Hard gates:
+#   - dist/ total size > 200 MB         → FAIL (matches initial-download HARD CEILING per SIZE_BUDGET_V1)
+#   - any single .js file > 15 MB       → FAIL (single-file Hermes proxy ceiling)
+#
+# IMPORTANT: web export bundle is a PROXY for iOS Hermes bytecode (~1.5x ratio per
+# SIZE_BUDGET_AUDIT_20260418.md §4.2). A passing web bundle does NOT guarantee
+# iOS install size <= 200 MB. True iOS install size must be validated separately
+# via the iPad 9 device test at Track B convergence
+# (see SHIP_READINESS_PARALLEL_TRACKS_v1.md "The serial milestone").
+#
+# Refs: prod_locked_decisions SIZE_BUDGET_V1 (id=295), BUNDLE_SIZE_CI_ENFORCEMENT_V1 (id=299),
+#       LD-283 SIZE_BUDGET_PER_MODULE_V1 (per-module, not enforced here),
+#       SIZE_BUDGET_AUDIT_20260418.md §8.1 + §9 R-4.
+
+name: Bundle Size Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle-size:
+    name: Measure dist/ + per-JS file sizes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.11.0"
+          cache: npm
+
+      - name: npm ci
+        run: npm ci --no-audit --no-fund
+
+      - name: Build web bundle (expo export --platform web)
+        run: npx expo export --platform web --output-dir dist
+
+      - name: Measure dist/ total
+        id: total
+        run: |
+          if [ ! -d dist ]; then
+            echo "::error::dist/ not produced by expo export"
+            exit 1
+          fi
+          TOTAL_BYTES=$(du -sb dist | awk '{print $1}')
+          TOTAL_MB=$((TOTAL_BYTES / 1024 / 1024))
+          echo "total_bytes=$TOTAL_BYTES" >> $GITHUB_OUTPUT
+          echo "total_mb=$TOTAL_MB" >> $GITHUB_OUTPUT
+          echo "## Bundle Size Report" >> $GITHUB_STEP_SUMMARY
+          echo "- Total dist/: ${TOTAL_MB} MB (${TOTAL_BYTES} bytes)" >> $GITHUB_STEP_SUMMARY
+          echo "- Ceiling: 200 MB (SIZE_BUDGET_V1)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Per-JS file scan
+        id: jsfiles
+        run: |
+          MAX_JS_BYTES=$((15 * 1024 * 1024))
+          OVER=0
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Per-JS file sizes" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Size (MB) | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+          while IFS= read -r f; do
+            SZ=$(stat -c%s "$f")
+            MB=$(awk "BEGIN { printf \"%.2f\", $SZ / 1024 / 1024 }")
+            if [ "$SZ" -gt "$MAX_JS_BYTES" ]; then
+              echo "| $f | $MB | OVER 15 MB |" >> $GITHUB_STEP_SUMMARY
+              OVER=$((OVER + 1))
+            else
+              echo "| $f | $MB | ok |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done < <(find dist -type f -name "*.js")
+          echo "over_count=$OVER" >> $GITHUB_OUTPUT
+
+      - name: Enforce ceilings
+        run: |
+          TOTAL_BYTES="${{ steps.total.outputs.total_bytes }}"
+          OVER="${{ steps.jsfiles.outputs.over_count }}"
+          MAX_TOTAL_BYTES=$((200 * 1024 * 1024))
+          FAIL=0
+          if [ "$TOTAL_BYTES" -gt "$MAX_TOTAL_BYTES" ]; then
+            echo "::error::dist/ total ${TOTAL_BYTES} bytes exceeds 200 MB ceiling (SIZE_BUDGET_V1)"
+            FAIL=1
+          fi
+          if [ "$OVER" -gt 0 ]; then
+            echo "::error::${OVER} .js file(s) exceed 15 MB ceiling (BUNDLE_SIZE_CI_ENFORCEMENT_V1)"
+            FAIL=1
+          fi
+          exit $FAIL
