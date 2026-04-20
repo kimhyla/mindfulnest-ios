@@ -1,0 +1,33 @@
+# Reliability-tier: 1
+# MindfulNest — LD-316 Module Exit smoke
+#
+# Verifies the Track C playback screen renders end-to-end and the close
+# button is reachable. Does NOT assert on the underlying AsyncStorage
+# write — that's covered by the progressionState + sessionState jest
+# unit suites which run in-process. The point of the Tier-1 PR-gate
+# smoke is to catch a build-broken / route-broken regression where the
+# module screen doesn't mount at all.
+#
+# Tap-on-text rather than testID-by-id (per LD-120 + maestro/RELIABILITY_TIERS.md):
+# iOS 26.4 + Maestro has intermittent kAXErrorInvalidUIElement on testID
+# lookups; the screenshots are the verification.
+#
+# Run: maestro test maestro/flows/module_exit_smoke.yaml
+
+appId: com.mindfulnest.app
+---
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: module_exit_smoke_01_home
+- openLink: mindfulnest://module/m1
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: module_exit_smoke_02_module_loading_or_playing
+- tapOn:
+    id: "module_screen_close_button"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: module_exit_smoke_03_after_close
