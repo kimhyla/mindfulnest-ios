@@ -66,6 +66,36 @@ export default [
     },
   },
   {
+    // LD-290 Phase 0 maintainability mitigation: all `stripe` imports MUST go
+    // through src/lib/stripe/client.ts so the Stripe-Idempotency-Key wrapper
+    // can never be bypassed. The wrapper file itself + the webhook trigger +
+    // tests are the only allowed sites.
+    files: ['src/**/*.ts'],
+    ignores: [
+      'src/lib/stripe/client.ts',
+      'src/lib/stripe/__tests__/**',
+      'src/triggers/https/stripeWebhook.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: '@sentry/node', message: 'Sentry banned. Use structured logger.' },
+            { name: '@sentry/react-native', message: 'Sentry banned. Use structured logger.' },
+            { name: '@bugsnag/js', message: 'Bugsnag banned. Use structured logger.' },
+            { name: 'rollbar', message: 'Rollbar banned. Use structured logger.' },
+            { name: 'stripe', message: 'Direct Stripe SDK import forbidden (LD-290). Use src/lib/stripe/client.ts wrapper.' },
+          ],
+          patterns: [
+            { group: ['@sentry/*'], message: 'Sentry banned (LD-169).' },
+            { group: ['@bugsnag/*'], message: 'Bugsnag banned (LD-169).' },
+          ],
+        },
+      ],
+    },
+  },
+  {
     ignores: ['lib/**', 'node_modules/**'],
   },
 ];

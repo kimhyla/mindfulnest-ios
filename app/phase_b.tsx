@@ -7,7 +7,7 @@ export default function PhaseBScreen() {
       <Text style={styles.title} testID="phase_b_title">Phase B — Guided Meditation</Text>
       <Text style={styles.subtitle} testID="phase_b_subtitle">Stage 1 Scaffold — Placeholder</Text>
       <Text style={styles.description} testID="phase_b_description">
-        The child closes their eyes. Myrrhin narrates.
+        The child closes their eyes. Cedric narrates.
         Breathing circle syncs to audio cues.
       </Text>
 

@@ -191,7 +191,7 @@ service cloud.firestore {
         'date_of_birth', 'gender',
         // Program state
         'current_module_id', 'current_phase', 'current_checkpoint_id',
-        'voice_cache_ids',
+        // voice_cache_ids REMOVED 2026-04-18 per LD-281 NO_RUNTIME_TTS_PERSONALIZATION_V1 — no per-child audio cache exists (app ships single-MP4 atomic deliverables).
         // Consent (KWS)
         'parental_consent_verified', 'parental_consent_source', 'kws_parent_id',
         'consent_status', 'consent_scope',
@@ -522,6 +522,20 @@ service cloud.firestore {
         && isChildsTherapist(childId);
       // CF-only writes via admin SDK. All client mutation denied.
       allow create, update, delete: if false;
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // LD-290 STRIPE_IDEMPOTENCY_KEY_V1 (id=300) CLAUSE 2: stripe_events is the
+    // webhook dedup table. Cloud Functions write via Admin SDK (bypasses these
+    // rules). NO client may read or write — leaking event payloads exposes
+    // Stripe metadata + customer email. NO exceptions.
+    match /stripe_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    // LD-290 CLAUSE 1: per-purchase attempt counters. Server-only.
+    match /purchases/{childId}/attempts/{sku} {
+      allow read, write: if false;
     }
 
     // ────────────────────────────────────────────────────────────────
