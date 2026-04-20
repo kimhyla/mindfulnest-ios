@@ -115,6 +115,38 @@ service cloud.firestore {
       return childData != null && childData.linkedParent == request.auth.uid;
     }
 
+    // ─── arc-entitlement helpers (overnight 2026-04-19, deliverable B) ──
+    // Maps a moduleId (e.g. 'M7') to the arc key the parent must hold an
+    // entitlement for (e.g. 'arc_2'). Today's product canon: M1-M6 = arc_1,
+    // M7-M12 = arc_2, M13-M18 = arc_3, M19-M24 = arc_4. Update in lockstep
+    // if module renumbering ever happens.
+    //
+    // Returns null when the moduleId does not match the M{N} pattern, so
+    // the caller can fall back to a hard deny for unknown modules.
+    function moduleArcKey(moduleId) {
+      // Firestore Rules v2 has no .substring() string method (the supported
+      // string ops are lower/upper/trim/replace/matches/size/split/toUtf8).
+      // We validate the M{N} pattern with matches() and then partition the
+      // 24-module space by explicit list membership. Returning null for any
+      // moduleId that doesn't match M1..M24 lets the caller hard-deny.
+      return !moduleId.matches('^M([1-9]|1[0-9]|2[0-4])$') ? null
+        : moduleId in ['M1','M2','M3','M4','M5','M6']        ? 'arc_1'
+        : moduleId in ['M7','M8','M9','M10','M11','M12']     ? 'arc_2'
+        : moduleId in ['M13','M14','M15','M16','M17','M18']  ? 'arc_3'
+        : 'arc_4';
+    }
+
+    function hasArcEntitlementForModule(moduleId) {
+      let arcKey = moduleArcKey(moduleId);
+      let parent = exists(/databases/$(database)/documents/parents/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/parents/$(request.auth.uid)).data
+        : null;
+      return arcKey != null
+        && parent != null
+        && parent.entitlements != null
+        && parent.entitlements[arcKey] == true;
+    }
+
     // Fields that ONLY Cloud Functions can write (notification tracking).
     // These are server-side concerns — parent device never needs to touch them.
     // Directus prod_locked_decisions ID 105 (CHILD_FIELD_WRITE_RESTRICTIONS).
@@ -345,6 +377,22 @@ service cloud.firestore {
     match /modules/{moduleId} {
       allow read: if isAuthenticated()
         && resource.data.status == 'published';
+
+      // ─── modules/{moduleId}/assets/{assetId} ────────────────────────
+      // Per-arc entitlement gate (added 2026-04-19, overnight deliverable B).
+      // Parents pay $499 one-time for the program; entitlements unlock arcs
+      // incrementally (parents get arc_1 immediately on purchase; arc_2+ as
+      // the child progresses or on subsequent purchases).
+      //
+      // The module-id → arc mapping is hardcoded here. Today's product canon
+      // (M1-M6 = arc_1, M7-M12 = arc_2, M13+ as more arcs ship) means the
+      // mapping is stable — but if module re-numbering ever happens, this
+      // rule must be updated in lockstep.
+      //
+      // Cloud Functions write entitlements; clients only read.
+      match /assets/{assetId} {
+        allow read: if isAuthenticated() && hasArcEntitlementForModule(moduleId);
+      }
     }
 
     // ─── narrativeEvents/{eventId} ─────────────────────────────────

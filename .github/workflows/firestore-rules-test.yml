@@ -13,21 +13,24 @@
 name: Firestore Rules Test
 
 on:
+  # Broadened 2026-04-19 (overnight deliverable B): trigger on any change
+  # under firestore/ so a future indexes.json / config tweak can't slip
+  # past the smoke gate. Previous narrow filter (rules + tests + jest
+  # config) missed peripheral changes.
   pull_request:
     branches:
       - main
     paths:
-      - firestore/firestore.rules
-      - firestore/__tests__/**
-      - firestore/jest.config.firestore.js
+      - firestore/**
       - package.json
       - package-lock.json
   push:
     branches:
       - main
     paths:
-      - firestore/firestore.rules
-      - firestore/__tests__/**
+      - firestore/**
+      - package.json
+      - package-lock.json
 
 permissions:
   contents: read
