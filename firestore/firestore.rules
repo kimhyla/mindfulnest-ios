@@ -124,12 +124,16 @@ service cloud.firestore {
     // Returns null when the moduleId does not match the M{N} pattern, so
     // the caller can fall back to a hard deny for unknown modules.
     function moduleArcKey(moduleId) {
-      let n = int(moduleId.substring(1, moduleId.size())); // 'M7' → 7
-      return n <= 6  ? 'arc_1'
-           : n <= 12 ? 'arc_2'
-           : n <= 18 ? 'arc_3'
-           : n <= 24 ? 'arc_4'
-           : null;
+      // Firestore Rules v2 has no .substring() string method (the supported
+      // string ops are lower/upper/trim/replace/matches/size/split/toUtf8).
+      // We validate the M{N} pattern with matches() and then partition the
+      // 24-module space by explicit list membership. Returning null for any
+      // moduleId that doesn't match M1..M24 lets the caller hard-deny.
+      return !moduleId.matches('^M([1-9]|1[0-9]|2[0-4])$') ? null
+        : moduleId in ['M1','M2','M3','M4','M5','M6']        ? 'arc_1'
+        : moduleId in ['M7','M8','M9','M10','M11','M12']     ? 'arc_2'
+        : moduleId in ['M13','M14','M15','M16','M17','M18']  ? 'arc_3'
+        : 'arc_4';
     }
 
     function hasArcEntitlementForModule(moduleId) {
