@@ -14,6 +14,7 @@
     "test:rules": "PATH=\"$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home/bin:$PATH\" firebase emulators:exec --only firestore 'jest --config firestore/jest.config.firestore.js'",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
     "prepare": "husky || exit 0",
     "test": "jest --config jest.config.js"
   },

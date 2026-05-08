@@ -1,0 +1,309 @@
+# zero-error-qa.yml
+# Lives at: kimhyla/mindfulnest-ios/.github/workflows/zero-error-qa.yml
+#
+# Activated by V59 CI/CD gap-fix Phase D (LD AI_REVIEW_AUTOMATION_V1 + sibling
+# LDs; see Production/docs/V59_CICD_GAP_FIX_SPEC_v1.md). Source-of-truth draft
+# lives in tooling repo at Production/github_actions/zero-error-qa.yml.
+#
+# Tier escalation (auto-detected from changed paths):
+#   Tier A — every PR/push: typecheck / lint / test / expo export
+#   Tier B — Firebase/RN/contract surface touched: + actor-matrix + AI policy replay
+#   Tier C — nightly / release branch / media pipeline touched: + media golden probe
+#
+# Override tier via workflow_dispatch input.
+#
+# CROSS-REPO DEPENDENCY (Phase D wiring): Tier B + Tier C steps invoke
+# scripts that live in the private kimhyla/mindfulnest-tooling repo
+# (Production/scripts/{test_firestore_rules.js, ai_policy_replay.py,
+# media_golden_probe.py}). Each job that needs them runs an extra
+# actions/checkout step against kimhyla/mindfulnest-tooling using the
+# TOOLING_REPO_PAT secret. Activation prerequisite (Kim, AM follow-up):
+#     gh secret set TOOLING_REPO_PAT -R kimhyla/mindfulnest-ios \
+#       --body 'ghp_<fine-grained PAT with read access to mindfulnest-tooling>'
+# Until that secret is set, Tier B + Tier C jobs FAIL LOUDLY at the checkout
+# step (this is intentional per Rule 19 — better a loud failure Kim sees on
+# the next PR than a silent skip).
+
+name: zero-error-qa
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop, "release/**"]
+  schedule:
+    - cron: "0 6 * * *"   # nightly Tier C at 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: "Force tier (A|B|C). Leave empty for auto."
+        required: false
+        default: ""
+      candidate_mp4:
+        description: "Candidate media artifact path (Tier C media probe)"
+        required: false
+        default: ""
+      golden_mp4:
+        description: "Golden media artifact path (Tier C media probe)"
+        required: false
+        default: ""
+      target_dbfs:
+        description: "Target loudness dBFS (Tier C media probe)"
+        required: false
+        default: "-16.0"
+
+concurrency:
+  group: zero-error-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── Classify: determine tier from event + changed paths ─────────────────────
+  classify:
+    runs-on: ubuntu-latest
+    outputs:
+      tier: ${{ steps.classify.outputs.tier }}
+      changed_any: ${{ steps.classify.outputs.changed_any }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Classify tier by event + changed paths
+        id: classify
+        shell: bash
+        run: |
+          set -euo pipefail
+          FORCE_TIER="${{ github.event.inputs.tier }}"
+          EVENT_NAME="${{ github.event_name }}"
+          REF="${{ github.ref }}"
+
+          if [[ -n "${FORCE_TIER}" ]]; then
+            echo "tier=${FORCE_TIER}" >> "$GITHUB_OUTPUT"
+            echo "changed_any=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Nightly schedule → always Tier C
+          if [[ "${EVENT_NAME}" == "schedule" ]]; then
+            echo "tier=C" >> "$GITHUB_OUTPUT"
+            echo "changed_any=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Determine diff range
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.sha }}"
+            # First push: before SHA may be all-zeros
+            if [[ "${BASE}" =~ ^0+$ ]]; then
+              BASE="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"
+            fi
+          fi
+
+          CHANGED="$(git diff --name-only "${BASE}" "${HEAD}" 2>/dev/null || true)"
+          echo "Changed files:"
+          echo "${CHANGED}"
+
+          if [[ -z "${CHANGED}" ]]; then
+            echo "tier=A" >> "$GITHUB_OUTPUT"
+            echo "changed_any=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Tier B: Firebase/RN/contract/auth surfaces
+          TIER_B_PATTERN='(firestore\.rules|firebase\.json|firestore\.indexes\.json|functions/|cloud-functions/|app/|src/|components/|screens/|hooks/|navigation/|app\.json|eas\.json|metro\.config|babel\.config|package\.json|ios/|android/)'
+
+          # Tier C: media/render pipeline or release branch
+          TIER_C_PATTERN='(Production/.*ffmpeg|Production/.*lipsync|Production/tools/|media/|assets/video/|assets/audio/|pipelines/|render/|sprite|normalized)'
+
+          TIER="A"
+          if echo "${CHANGED}" | grep -Eq "${TIER_B_PATTERN}"; then
+            TIER="B"
+          fi
+          if echo "${CHANGED}" | grep -Eq "${TIER_C_PATTERN}" || [[ "${REF}" == refs/heads/release/* ]]; then
+            TIER="C"
+          fi
+
+          echo "tier=${TIER}" >> "$GITHUB_OUTPUT"
+          echo "changed_any=true" >> "$GITHUB_OUTPUT"
+
+      - name: Show tier decision
+        run: |
+          echo "Selected tier: ${{ steps.classify.outputs.tier }}"
+          echo "changed_any: ${{ steps.classify.outputs.changed_any }}"
+
+  # ─── Tier A: fast, every change ──────────────────────────────────────────────
+  tier_a_fast:
+    name: "Tier A — Phase 2.6 (RN/Expo)"
+    runs-on: ubuntu-latest
+    needs: classify
+    if: ${{ needs.classify.outputs.changed_any == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: lint
+        run: npm run lint
+
+      - name: unit tests
+        run: npm test -- --runInBand --watch=false
+
+      - name: expo config sanity
+        run: npx expo config --json >/dev/null
+
+      - name: expo-doctor
+        run: npx expo-doctor
+
+      - name: expo export — iOS
+        run: npx expo export --platform ios --output-dir /tmp/expo-export-ios
+
+      - name: expo export — Android
+        run: npx expo export --platform android --output-dir /tmp/expo-export-android
+
+  # ─── Tier B: architectural (Firebase + AI safety) ────────────────────────────
+  tier_b_architectural:
+    name: "Tier B — Phase 2.7 + AI policy replay [${{ matrix.os }}]"
+    needs: [classify, tier_a_fast]
+    if: ${{ needs.classify.outputs.tier == 'B' || needs.classify.outputs.tier == 'C' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    env:
+      AI_ROUTER_URL: ${{ secrets.AI_ROUTER_URL }}
+      AI_ROUTER_TIMEOUT_S: "20"
+      AI_EXPECTED_SAFETY_LAYERS: ${{ secrets.AI_EXPECTED_SAFETY_LAYERS }}
+      FIREBASE_RULES_PATH: "firestore.rules"
+      FIREBASE_PROJECT_ID: "demo-mindfulnest-ci"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Guard AI_ROUTER_URL secret
+        shell: bash
+        run: |
+          if [[ -z "${AI_ROUTER_URL}" ]]; then
+            echo "ERROR: AI_ROUTER_URL secret not set — required for Tier B."
+            exit 1
+          fi
+
+      - name: Checkout tooling repo (cross-repo CI scripts)
+        uses: actions/checkout@v4
+        with:
+          repository: kimhyla/mindfulnest-tooling
+          path: tooling-repo
+          token: ${{ secrets.TOOLING_REPO_PAT }}
+
+      - name: Phase 2.7 — Firebase actor matrix
+        run: node tooling-repo/Production/scripts/test_firestore_rules.js
+
+      - name: Phase 2.6 (Step 5) — AI policy replay / fault-injection
+        run: python3 tooling-repo/Production/scripts/ai_policy_replay.py
+
+  # ─── Tier C: nightly / pre-release (media golden probe) ──────────────────────
+  tier_c_prerelease:
+    name: "Tier C — Phase 6.8 (media golden probe) [${{ matrix.os }}]"
+    needs: [classify, tier_b_architectural]
+    if: ${{ needs.classify.outputs.tier == 'C' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    env:
+      TARGET_DBFS: ${{ github.event.inputs.target_dbfs || vars.TARGET_DBFS || '-16.0' }}
+      CANDIDATE_MP4: ${{ github.event.inputs.candidate_mp4 || vars.CANDIDATE_MP4 }}
+      GOLDEN_MP4: ${{ github.event.inputs.golden_mp4 || vars.GOLDEN_MP4 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Install ffmpeg (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+
+      - name: Install ffmpeg (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install ffmpeg
+
+      - name: Guard media inputs
+        shell: bash
+        run: |
+          if [[ -z "${CANDIDATE_MP4}" || -z "${GOLDEN_MP4}" ]]; then
+            echo "ERROR: CANDIDATE_MP4 and GOLDEN_MP4 must be set (workflow inputs or repo vars)."
+            exit 1
+          fi
+
+      - name: Checkout tooling repo (cross-repo CI scripts)
+        uses: actions/checkout@v4
+        with:
+          repository: kimhyla/mindfulnest-tooling
+          path: tooling-repo
+          token: ${{ secrets.TOOLING_REPO_PAT }}
+
+      - name: Phase 6.8 — media golden probe
+        run: |
+          python3 tooling-repo/Production/scripts/media_golden_probe.py \
+            --candidate "${CANDIDATE_MP4}" \
+            --golden    "${GOLDEN_MP4}" \
+            --target-dbfs "${TARGET_DBFS}"
+
+  # ─── Summary ─────────────────────────────────────────────────────────────────
+  summary:
+    name: QA Summary
+    runs-on: ubuntu-latest
+    needs: [classify, tier_a_fast, tier_b_architectural, tier_c_prerelease]
+    if: always()
+    steps:
+      - name: Print results
+        run: |
+          echo "Tier selected : ${{ needs.classify.outputs.tier }}"
+          echo "Tier A        : ${{ needs.tier_a_fast.result }}"
+          echo "Tier B        : ${{ needs.tier_b_architectural.result }}"
+          echo "Tier C        : ${{ needs.tier_c_prerelease.result }}"
+
+# ─── Required repo config ────────────────────────────────────────────────────
+# Secrets:
+#   AI_ROUTER_URL             — full URL to parent-coach AI router
+#   AI_EXPECTED_SAFETY_LAYERS — comma-separated canonical safety layer list (optional)
+#
+# Repository Variables (or pass via workflow_dispatch):
+#   CANDIDATE_MP4   — path to candidate media file (Tier C)
+#   GOLDEN_MP4      — path to approved golden file (Tier C)
+#   TARGET_DBFS     — target loudness, e.g. -16.0 (default provided above)

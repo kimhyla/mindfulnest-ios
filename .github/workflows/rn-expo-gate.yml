@@ -1,0 +1,165 @@
+# rn-expo-gate.yml
+# Deploy to: MindfulNest/.github/workflows/rn-expo-gate.yml
+#
+# Covers the QA gaps NOT handled by existing workflows:
+#   - firestore-rules-test.yml already runs Phase 2.7 (Firebase actor matrix)
+#   - maestro-tier1.yml already runs Phase 6.7 (Mobile E2E Tier 1)
+#   - bundle-size.yml already runs expo export --platform web
+#
+# This workflow adds what's missing:
+#   Job 1: TypeScript typecheck + lint + iOS + Android expo export (Phase 2.6)
+#   Job 2: Media golden probe on nightly / release branch (Phase 6.8)
+
+name: rn-expo-gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "app/**"
+      - "src/**"
+      - "components/**"
+      - "screens/**"
+      - "hooks/**"
+      - "navigation/**"
+      - "app.json"
+      - "eas.json"
+      - "metro.config.*"
+      - "babel.config.*"
+      - "package.json"
+      - "package-lock.json"
+      - "ios/**"
+      - "android/**"
+      - ".github/workflows/rn-expo-gate.yml"
+  push:
+    branches: [main, "release/**"]
+  schedule:
+    - cron: "0 6 * * *"   # nightly — triggers media probe (Tier C)
+  workflow_dispatch:
+    inputs:
+      run_media_probe:
+        description: "Run media golden probe (yes/no)"
+        required: false
+        default: "no"
+      candidate_mp4:
+        description: "Candidate MP4 path"
+        required: false
+        default: ""
+      golden_mp4:
+        description: "Golden MP4 path or 'asset-id:<N>'"
+        required: false
+        default: ""
+      target_dbfs:
+        description: "Target loudness dBFS"
+        required: false
+        default: "-16.0"
+
+concurrency:
+  group: rn-expo-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+# ── Job 1: Phase 2.6 — TypeScript + Expo iOS/Android validation ──────────────
+jobs:
+  rn-expo-validation:
+    name: "Phase 2.6 — RN/Expo typecheck + iOS/Android export"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --runInBand --watchAll=false
+
+      - name: expo config sanity
+        run: npx expo config --json >/dev/null
+
+      - name: expo-doctor
+        run: npx expo-doctor
+
+      - name: expo export — iOS
+        run: npx expo export --platform ios --output-dir /tmp/expo-export-ios
+
+      - name: expo export — Android
+        run: npx expo export --platform android --output-dir /tmp/expo-export-android
+
+      - name: Confirm both bundles produced
+        run: |
+          test -d /tmp/expo-export-ios   || { echo "::error::iOS export missing"; exit 1; }
+          test -d /tmp/expo-export-android || { echo "::error::Android export missing"; exit 1; }
+          echo "PASS: iOS and Android bundles produced."
+
+# ── Job 2: Phase 6.8 — Media golden probe (nightly / release / manual) ───────
+  media-golden-probe:
+    name: "Phase 6.8 — Media golden probe"
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      startsWith(github.ref, 'refs/heads/release/') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_media_probe == 'yes')
+    env:
+      CANDIDATE_MP4: ${{ github.event.inputs.candidate_mp4 || vars.CANDIDATE_MP4 }}
+      GOLDEN_INPUT:  ${{ github.event.inputs.golden_mp4    || vars.GOLDEN_MP4 }}
+      TARGET_DBFS:   ${{ github.event.inputs.target_dbfs   || vars.TARGET_DBFS || '-16.0' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+
+      - name: Checkout tooling repo (cross-repo CI scripts)
+        uses: actions/checkout@v4
+        with:
+          repository: kimhyla/mindfulnest-tooling
+          path: tooling-repo
+          token: ${{ secrets.TOOLING_REPO_PAT }}
+
+      - name: Guard inputs
+        run: |
+          if [[ -z "$CANDIDATE_MP4" ]]; then
+            echo "::error::CANDIDATE_MP4 must be set (workflow input or repo var)."
+            exit 1
+          fi
+          if [[ -z "$GOLDEN_INPUT" ]]; then
+            echo "::error::GOLDEN_MP4 must be set (workflow input or repo var). Use 'asset-id:<N>' to fetch from Directus."
+            exit 1
+          fi
+
+      - name: Run media golden probe
+        run: |
+          # Support 'asset-id:<N>' shorthand or direct path
+          if [[ "$GOLDEN_INPUT" == asset-id:* ]]; then
+            ASSET_ID="${GOLDEN_INPUT#asset-id:}"
+            python3 tooling-repo/Production/scripts/media_golden_probe.py \
+              --candidate "$CANDIDATE_MP4" \
+              --asset-id  "$ASSET_ID" \
+              --target-dbfs "$TARGET_DBFS"
+          else
+            python3 tooling-repo/Production/scripts/media_golden_probe.py \
+              --candidate "$CANDIDATE_MP4" \
+              --golden    "$GOLDEN_INPUT" \
+              --target-dbfs "$TARGET_DBFS"
+          fi
+
+# Required repo variables (Settings → Variables):
+#   CANDIDATE_MP4   — path to candidate MP4 for nightly probe
+#   GOLDEN_MP4      — path or 'asset-id:<N>' for approved golden
+#   TARGET_DBFS     — target loudness (default -16.0)
