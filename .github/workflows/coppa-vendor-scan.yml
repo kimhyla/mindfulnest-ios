@@ -1,0 +1,44 @@
+# MindfulNest — COPPA Forbidden Vendor Scan
+#
+# Closes LD 560 WATCH_LIST_MECHANICAL_ENFORCEMENT_V1's CI half. The pre-commit
+# half (master spec v6 §9 anti-pattern detection) landed in tooling repo PR #8
+# commit 39c8fd8.
+#
+# Walks both lockfiles (lockfileVersion 3) and fails on any §8.4 forbidden
+# vendor SDK — analytics, ads, session-replay, attribution, deprecated UI kits.
+# Distinct from dependency-audit.yml (Sentry/Bugsnag/Rollbar/etc; LD-220/-157).
+#
+# Refs: master tech spec v6 §8.4, LD 560 WATCH_LIST_MECHANICAL_ENFORCEMENT_V1.
+
+name: COPPA Forbidden Vendor Scan
+
+on:
+  pull_request:
+    paths:
+      - 'package-lock.json'
+      - 'package.json'
+      - 'functions/package-lock.json'
+      - 'functions/package.json'
+      - 'scripts/check-coppa-vendors.mjs'
+      - '.github/workflows/coppa-vendor-scan.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'package-lock.json'
+      - 'package.json'
+      - 'functions/package-lock.json'
+      - 'functions/package.json'
+      - 'scripts/check-coppa-vendors.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  vendor_scan:
+    name: Scan lockfiles for §8.4 forbidden vendor SDKs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run COPPA forbidden-vendor scan (master spec v6 §8.4)
+        run: node scripts/check-coppa-vendors.mjs
