@@ -1,0 +1,50 @@
+name: CodeQL
+
+# Per V59 CI/CD gap-fix Phase H / LD CODEQL_DEPENDABOT_SECURITY_SCAN_V1.
+# CodeQL static analysis on every push to main, every PR to main, and a
+# weekly cron sweep. Findings appear in the Security tab.
+# RN repo is TypeScript-only (no Python); see kimhyla/mindfulnest-tooling
+# for Python coverage.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 9 * * 1"  # Mondays 09:00 UTC
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

@@ -1,0 +1,32 @@
+version: 2
+
+# Per V59 CI/CD gap-fix Phase H / LD CODEQL_DEPENDABOT_SECURITY_SCAN_V1.
+# Weekly Dependabot PRs across all ecosystems this RN repo ships.
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "security"]
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "cocoapods"
+    directory: "/ios"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "ios"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "ci"]
