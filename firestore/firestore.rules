@@ -395,6 +395,17 @@ service cloud.firestore {
       }
     }
 
+    // ─── arc_manifests/{arcId} ─────────────────────────────────────
+    // Static arc→module mapping consumed by catalogService on cache miss.
+    // Any authenticated user may read (no entitlement required — manifest
+    // contains only structural data: moduleId list, arcId, no content URLs).
+    // Write: admin/Cloud Functions only (no client write rule = default deny).
+    // Stream C catalog wiring (preflight 156, LD-406).
+
+    match /arc_manifests/{arcId} {
+      allow read: if isAuthenticated();
+    }
+
     // ─── narrativeEvents/{eventId} ─────────────────────────────────
     // F8 FIX: NO CLIENT READ RULES.
     // Narrative engine runs server-side (Cloud Functions with Admin SDK).

@@ -9,13 +9,14 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "ios": "expo run:ios",
+    "ios": "SENTRY_DISABLE_AUTO_UPLOAD=true expo run:ios",
     "web": "expo start --web",
     "test:rules": "PATH=\"$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home/bin:$PATH\" firebase emulators:exec --only firestore 'jest --config firestore/jest.config.firestore.js'",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "prepare": "husky || exit 0",
-    "test": "jest --config jest.config.js"
+    "test": "jest --config jest.config.js",
+    "test:coppa-contracts": "node scripts/qa/coppa-function-contract.test.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -24,8 +25,13 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-firebase/app": "^24.0.0",
+    "@react-native-firebase/app-check": "^24.0.0",
+    "@react-native-firebase/crashlytics": "^24.0.0",
+    "@sentry/react-native": "~7.2.0",
     "expo": "~54.0.33",
     "expo-audio": "~1.1.1",
+    "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.8",
     "expo-dev-client": "~6.0.20",

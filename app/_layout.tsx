@@ -5,6 +5,9 @@ import { useAuth } from "../src/hooks/useAuth";
 import { initAudioSession } from "../src/services/audioSession";
 import { initActiveArcPin } from "../src/services/activeArcPin";
 import { loadFromStorage as loadCacheIndex } from "../src/services/cacheIndex";
+import { initializeAppCheck } from "../src/services/appCheckService";
+import { initializeCrashlytics } from "../src/services/crashlyticsService";
+import { initializeSentry } from "../src/services/sentryService";
 
 function AuthGate({ children }: { children: ReactElement }): ReactElement {
   const { status } = useAuth();
@@ -29,6 +32,20 @@ export default function RootLayout(): ReactElement {
     void initAudioSession();
     void initActiveArcPin();
     void loadCacheIndex();
+
+    // G0 compliance inits (LD-802, LD-801): App Check attestation, Crashlytics
+    // collection (disabled at launch, enabled on parent consent), Sentry error
+    // monitoring. Sentry is synchronous. Crashlytics is fire-and-forget (COPPA
+    // collection disabled at launch; init failure is non-fatal).
+    // App Check is awaited inside an async IIFE so init errors surface rather
+    // than being silently swallowed. When enforceAppCheck flips to true
+    // (LD-802 gate), any Firebase callable made before this resolves will fail —
+    // add a callable-layer readiness guard at that point.
+    void (async () => {
+      await initializeAppCheck();
+    })();
+    void initializeCrashlytics();
+    initializeSentry();
 
     if (__DEV__) {
       // Conditional require so Metro DCEs the entire DevTelemetry + DevTelemetryServer

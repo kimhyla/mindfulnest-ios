@@ -30,6 +30,8 @@ import {
   pinArc,
   unpinArc,
 } from '../services/activeArcPin';
+export type { PhaseBoundary } from '../services/cloudFunctions';
+import type { PhaseBoundary } from '../services/cloudFunctions';
 import {
   clearSessionState,
   saveSessionState,
@@ -54,6 +56,12 @@ export interface UseModulePlaybackOptions {
   videoSource: VideoSource;
   /** Seconds — if non-null, player seeks here on mount before playing. */
   initialSeekSeconds: number | null;
+  /**
+   * LD-316 phaseBoundaries — named phase segments from the module manifest.
+   * Used to derive the 'phase_b' seek target for "Start Magic Spell Again".
+   * Optional: when absent (e.g. while downloading), the button is disabled.
+   */
+  phaseBoundaries?: PhaseBoundary[];
 }
 
 export interface UseModulePlaybackResult {
@@ -68,13 +76,21 @@ export interface UseModulePlaybackResult {
    * a user-initiated pause as an interruption.
    */
   userInitiatedPauseRef: RefObject<boolean>;
+  /**
+   * LD-316: start_s of the 'phase_b' boundary — seek target for
+   * "Start Magic Spell Again". Null when phaseBoundaries not yet available.
+   */
+  phaseBStart: number | null;
 }
 
 /**
  * Hook: manages one expo-video player for a module, with LD-286 save-and-resume.
  */
 export function useModulePlayback(options: UseModulePlaybackOptions): UseModulePlaybackResult {
-  const { moduleId, arcId, phase, videoSource, initialSeekSeconds } = options;
+  const { moduleId, arcId, phase, videoSource, initialSeekSeconds, phaseBoundaries } = options;
+
+  // LD-316: derive Phase B seek target from named boundaries
+  const phaseBStart = phaseBoundaries?.find((b) => b.name === 'phase_b')?.start_s ?? null;
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
@@ -177,5 +193,6 @@ export function useModulePlayback(options: UseModulePlaybackOptions): UseModuleP
     hasEnded,
     wasInterrupted,
     userInitiatedPauseRef,
+    phaseBStart,
   };
 }

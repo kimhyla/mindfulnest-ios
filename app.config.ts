@@ -26,6 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.mindfulnest.app",
+    googleServicesFile: "./GoogleService-Info.plist",
   },
   android: {
     adaptiveIcon: {
@@ -34,6 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
+    googleServicesFile: "./google-services.json",
   },
   web: {
     favicon: "./assets/favicon.png",
@@ -43,10 +45,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-router",
     "expo-video",
     "expo-audio",
+    // expo-build-properties: sets use_modular_headers: true in CocoaPods for
+    // @react-native-firebase v24 Swift pods (FirebaseCoreInternal,
+    // FirebaseCrashlytics, FirebaseSessions). Without this, CocoaPods fails
+    // with "does not define modules" error on React Native Firebase v24.
+    ["expo-build-properties", { "ios": { "useModularHeaders": true } }],
+    "@react-native-firebase/app",
+    "@react-native-firebase/crashlytics",
+    "@sentry/react-native",
     ...(isProduction ? [] : ["./plugins/withDevTelemetryServer"]),
   ],
   extra: {
     devTelemetryEnabled: !isProduction,
+    sentryDsn: process.env.SENTRY_DSN ?? null,
     eas: {
       projectId: "d9b5e6fc-0474-44f4-89db-383437542bc4",
     },

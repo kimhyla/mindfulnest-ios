@@ -6,9 +6,9 @@
 // role), then this callable checks their invite code while authenticated and
 // upgrades their custom claim.
 //
-// App Check: `enforceAppCheck: false` for v1 — flips to true when App Check
-// provisioning lands (S3-POLISH-appcheck). LD-229 notes onRequest CFs require
-// CORS+App Check; onCall is sibling-in-spirit. Documented as follow-up.
+// App Check: enforceAppCheck: true — LD-802 gate closed 2026-05-25.
+// Debug token 55E583F3-A6D4-4D2B-A834-AB5941BE6371 registered in Firebase Console
+// (or register before deploying: Firebase Console → App Check → iOS → Manage Debug Tokens).
 //
 // Atomicity: custom claim set + invite doc updated + therapist profile
 // created in one runTransaction. If any step fails, the whole call fails.
@@ -29,7 +29,7 @@ interface ClaimRequest {
 }
 
 export const claimTherapistInvite = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) {
@@ -66,6 +66,11 @@ export const claimTherapistInvite = onCall(
           status: 'active',
           linked_from_invite: code,
           invite_issuer_therapist_id: invite.therapistId,
+          // linked_children: [] initialized here so withCoppaGuardCallable can
+          // enforce the relationship as soon as onParentLinkTherapist CF is built.
+          // Pattern mirrors onParentSignup.ts (parents.linked_children).
+          // Currently always empty — see DEVIATION in withCoppaGuard.ts.
+          linked_children: [],
           created_at: FieldValue.serverTimestamp(),
         },
         { merge: true },

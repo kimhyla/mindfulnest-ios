@@ -23,6 +23,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { computeAwards } from '../../lib/coins/computeAwards';
 import { writeAudit } from '../../lib/audit/log';
+import { assertCoppaTrigger } from '../../middleware/withCoppaGuard';
 import {
   MODULE_IDS,
   PHASES,
@@ -60,6 +61,15 @@ export const awardCoinsOnSession = onDocumentCreated(
     const childRef = db.collection('children').doc(childId);
 
     await db.runTransaction(async (txn) => {
+      // COPPA guard — spec §7.2. Validates childId + allowlist + audit inside txn.
+      await assertCoppaTrigger(
+        { kind: 'txn', db, txn },
+        {
+          childId,
+          writeAllowlist: ['coinBalance', 'stones_earned'],
+          documentFields: { coinBalance: true, stones_earned: true },
+        },
+      );
       const ledgerSnap = await txn.get(ledgerRef);
       if (ledgerSnap.exists) return; // idempotent no-op
 

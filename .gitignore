@@ -56,3 +56,7 @@ firestore-debug.log
 !assets/*.png
 /.maestro
 
+# Firebase native config files (contain project credentials — never commit)
+GoogleService-Info.plist
+google-services.json
+

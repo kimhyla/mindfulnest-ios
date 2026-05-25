@@ -24,6 +24,7 @@ function makeEntry(overrides: Partial<CacheEntry>): CacheEntry {
     arcId: 'arc1',
     localPath: 'file:///mock/assets/arc1/a1.mp4',
     sizeBytes: 50 * 1024 * 1024,
+    contentHash: 'abc123',
     lastPlayedAt: 1_000,
     downloadedAt: 1_000,
     ...overrides,

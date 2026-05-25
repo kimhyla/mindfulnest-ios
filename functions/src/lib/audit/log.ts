@@ -21,7 +21,9 @@ export type AuditAction =
   | 'coin_awarded'
   | 'coin_and_stone_awarded'
   | 'parent_signup'
-  | 'therapist_invite_claimed';
+  | 'therapist_invite_claimed'
+  | 'module_download_url_granted'
+  | 'child_data_access'; // withCoppaGuard generic access audit (spec §7.2)
 
 const VALID_ACTIONS: ReadonlyArray<AuditAction> = [
   'zap_sanitize_ok',
@@ -33,6 +35,8 @@ const VALID_ACTIONS: ReadonlyArray<AuditAction> = [
   'coin_and_stone_awarded',
   'parent_signup',
   'therapist_invite_claimed',
+  'module_download_url_granted',
+  'child_data_access',
 ];
 
 export interface AuditEvent {

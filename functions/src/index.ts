@@ -34,3 +34,7 @@ export { awardCoinsOnSession } from './triggers/firestore/awardCoinsOnSession';
 //   Two-clause idempotency — outbound Stripe-Idempotency-Key per
 //   ${childId}:${sku}:${attemptSeq}, inbound stripe_events dedup transaction.
 export { stripeWebhook } from './triggers/https/stripeWebhook';
+
+// Stream C catalog wiring (preflight 156, LD-406 signed URL generation,
+// PHASE_BOUNDARIES_NAMED_OBJECT_V1):
+export { generateModuleDownloadUrl } from './triggers/https/generateModuleDownloadUrl';

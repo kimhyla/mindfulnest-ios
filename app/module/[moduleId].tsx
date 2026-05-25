@@ -7,13 +7,18 @@
 // LD-286 Layer 1: on mount, check for in-progress session state. If found
 // and RESUME_MODE === 'prompt', render ResumePromptModal before the playback
 // hook mounts. Child's choice decides the initial seek target.
+//
+// Stream C (preflight 156, LD-406): module video source is now resolved via
+// catalogService (CF signed URL → download → local cache) instead of the
+// former PLACEHOLDER_VIDEO_URL stub. LaunchState includes 'downloading' and
+// 'error' phases that appear before the existing resume/play flow.
 
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { VideoView } from 'expo-video';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 
-import { useModulePlayback } from '../../src/hooks/useModulePlayback';
+import { useModulePlayback, type PhaseBoundary } from '../../src/hooks/useModulePlayback';
 import { ResumePromptModal } from '../../src/components/ResumePromptModal';
 import {
   RESUME_MODE,
@@ -22,76 +27,101 @@ import {
   saveSessionState,
   type SessionState,
 } from '../../src/services/sessionState';
+import { resolveModule, CacheHashMismatchError } from '../../src/services/catalogService';
 
-// STUB: until the module catalog lands (separate PR — see APP-25 offline
-// cache in STAGE3_ARCHITECTURE_INVENTORY_v2.md), Track C resolves a module's
-// video source from a built-in map. A real catalog lookup against cacheIndex
-// replaces this stub when the delivery pipeline lands (LD-282 Layer 2).
-const PLACEHOLDER_VIDEO_URL =
-  'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4';
-
-interface ModuleMeta {
-  arcId: string;
-  title: string;
-  videoSource: string;
-}
-
-// Minimal directory to make the route navigable for Maestro / local testing.
-// Real catalog comes from cacheIndex in a follow-up PR once the manifest
-// upload pipeline ships.
-const MODULE_DIRECTORY: Record<string, ModuleMeta> = {
-  m1: { arcId: 'arc1', title: 'Tessa — Body Stone', videoSource: PLACEHOLDER_VIDEO_URL },
-  m2: { arcId: 'arc1', title: 'Luna — Watching Stone', videoSource: PLACEHOLDER_VIDEO_URL },
-  m3: { arcId: 'arc1', title: 'Benson — Courage Stone', videoSource: PLACEHOLDER_VIDEO_URL },
-  m4: { arcId: 'arc1', title: 'Ember — Heart Stone', videoSource: PLACEHOLDER_VIDEO_URL },
-  m5: { arcId: 'arc1', title: 'Bork — Grounding Stone', videoSource: PLACEHOLDER_VIDEO_URL },
-  m6: { arcId: 'arc1', title: 'Bramble — Calm Stone', videoSource: PLACEHOLDER_VIDEO_URL },
+// Module title lookup — display only, does not affect routing or catalog logic.
+const MODULE_TITLES: Record<string, string> = {
+  m1: 'Tessa — Body Stone',
+  m2: 'Luna — Watching Stone',
+  m3: 'Benson — Courage Stone',
+  m4: 'Ember — Heart Stone',
+  m5: 'Bork — Grounding Stone',
+  m6: 'Bramble — Calm Stone',
 };
 
+// Pure discriminated union — all members use { kind } for consistent narrowing.
 type LaunchState =
-  | { kind: 'checking_resume' }
-  | { kind: 'resume_prompt'; savedState: SessionState }
-  | { kind: 'playing'; initialSeekSeconds: number | null };
+  | { kind: 'downloading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'resume_prompt'; savedState: SessionState; videoSource: string; phaseBoundaries: PhaseBoundary[]; arcId: string }
+  | { kind: 'playing'; initialSeekSeconds: number | null; videoSource: string; phaseBoundaries: PhaseBoundary[]; arcId: string };
 
 export default function ModuleScreen(): ReactElement {
   const params = useLocalSearchParams<{ moduleId: string }>();
   const router = useRouter();
-  const moduleId = typeof params.moduleId === 'string' ? params.moduleId : '';
-  const meta = MODULE_DIRECTORY[moduleId];
+  const moduleId = typeof params.moduleId === 'string' ? params.moduleId.toLowerCase() : '';
+  const title = MODULE_TITLES[moduleId] ?? moduleId;
 
-  const [launchState, setLaunchState] = useState<LaunchState>({ kind: 'checking_resume' });
+  const [launchState, setLaunchState] = useState<LaunchState>({ kind: 'downloading' });
 
-  // Resume check runs once on mount. Only the LD-286 'prompt' mode gates
-  // playback behind a UI decision. 'silent-resume' auto-seeks; 'silent-zero'
-  // ignores saved state.
+  // Phase 1: resolve the module from the local cache or CDN (LD-406 / Stream C).
   useEffect(() => {
-    if (!meta) return;
+    if (!moduleId) {
+      setLaunchState({ kind: 'error', message: `Unknown module: ${moduleId}` });
+      return;
+    }
     let cancelled = false;
-    void (async () => {
-      const saved = await loadSessionState(moduleId);
-      if (cancelled) return;
-
-      if (saved == null) {
-        setLaunchState({ kind: 'playing', initialSeekSeconds: null });
-        return;
-      }
-
-      if (RESUME_MODE === 'silent-resume') {
-        setLaunchState({ kind: 'playing', initialSeekSeconds: saved.audioPositionMs / 1000 });
-        return;
-      }
-      if (RESUME_MODE === 'silent-zero') {
-        await clearSessionState(moduleId);
-        setLaunchState({ kind: 'playing', initialSeekSeconds: null });
-        return;
-      }
-      // RESUME_MODE === 'prompt'
-      setLaunchState({ kind: 'resume_prompt', savedState: saved });
-    })();
+    setLaunchState({ kind: 'downloading' });
+    resolveModule(moduleId)
+      .then((mod) => {
+        if (cancelled) return;
+        // Phase 2: check for a saved resume position (LD-286).
+        void (async () => {
+          const saved = await loadSessionState(moduleId);
+          if (cancelled) return;
+          if (saved == null) {
+            setLaunchState({
+              kind: 'playing',
+              initialSeekSeconds: null,
+              videoSource: mod.localPath,
+              phaseBoundaries: mod.phaseBoundaries,
+              arcId: mod.arcId,
+            });
+            return;
+          }
+          if (RESUME_MODE === 'silent-resume') {
+            setLaunchState({
+              kind: 'playing',
+              initialSeekSeconds: saved.audioPositionMs / 1000,
+              videoSource: mod.localPath,
+              phaseBoundaries: mod.phaseBoundaries,
+              arcId: mod.arcId,
+            });
+            return;
+          }
+          if (RESUME_MODE === 'silent-zero') {
+            await clearSessionState(moduleId);
+            setLaunchState({
+              kind: 'playing',
+              initialSeekSeconds: null,
+              videoSource: mod.localPath,
+              phaseBoundaries: mod.phaseBoundaries,
+              arcId: mod.arcId,
+            });
+            return;
+          }
+          // RESUME_MODE === 'prompt'
+          setLaunchState({
+            kind: 'resume_prompt',
+            savedState: saved,
+            videoSource: mod.localPath,
+            phaseBoundaries: mod.phaseBoundaries,
+            arcId: mod.arcId,
+          });
+        })();
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const message =
+          err instanceof CacheHashMismatchError
+            ? 'Download corrupted — tap to retry.'
+            : 'Could not load module. Check your connection.';
+        setLaunchState({ kind: 'error', message });
+      });
     return () => {
       cancelled = true;
     };
-  }, [moduleId, meta]);
+  }, [moduleId]);
 
   const onResume = useCallback(() => {
     setLaunchState((prev) => {
@@ -99,23 +129,72 @@ export default function ModuleScreen(): ReactElement {
       return {
         kind: 'playing',
         initialSeekSeconds: prev.savedState.audioPositionMs / 1000,
+        videoSource: prev.videoSource,
+        phaseBoundaries: prev.phaseBoundaries,
+        arcId: prev.arcId,
       };
     });
   }, []);
 
   const onStartFresh = useCallback(() => {
     void clearSessionState(moduleId);
-    setLaunchState({ kind: 'playing', initialSeekSeconds: null });
+    setLaunchState((prev) => {
+      if (prev.kind !== 'resume_prompt') return prev;
+      return {
+        kind: 'playing',
+        initialSeekSeconds: null,
+        videoSource: prev.videoSource,
+        phaseBoundaries: prev.phaseBoundaries,
+        arcId: prev.arcId,
+      };
+    });
   }, [moduleId]);
 
-  if (!meta) {
+  const onRetry = useCallback(() => {
+    setLaunchState({ kind: 'downloading' });
+    resolveModule(moduleId)
+      .then((mod) => {
+        setLaunchState({
+          kind: 'playing',
+          initialSeekSeconds: null,
+          videoSource: mod.localPath,
+          phaseBoundaries: mod.phaseBoundaries,
+          arcId: mod.arcId,
+        });
+      })
+      .catch((err) => {
+        const message =
+          err instanceof CacheHashMismatchError
+            ? 'Download corrupted — tap to retry.'
+            : 'Could not load module. Check your connection.';
+        setLaunchState({ kind: 'error', message });
+      });
+  }, [moduleId]);
+
+  if (launchState.kind === 'downloading') {
     return (
-      <View style={styles.container} testID="module_screen_unknown">
-        <Text style={styles.errorText} testID="module_screen_unknown_text">
-          Unknown module: {moduleId}
+      <View style={styles.container} testID="module_screen_downloading">
+        <ActivityIndicator size="large" color="#4A6741" testID="module_screen_downloading_spinner" />
+        <Text style={styles.loadingText} testID="module_screen_downloading_text">
+          Loading {title}…
         </Text>
+      </View>
+    );
+  }
+
+  if (launchState.kind === 'error') {
+    return (
+      <View style={styles.container} testID="module_screen_error">
+        <Text style={styles.errorText} testID="module_screen_error_text">
+          {launchState.message}
+        </Text>
+        <Pressable style={styles.closeButton} onPress={onRetry} testID="module_screen_retry">
+          <Text style={styles.closeButtonText} testID="module_screen_retry_text">
+            Retry
+          </Text>
+        </Pressable>
         <Link href="/" asChild>
-          <Pressable style={styles.closeButton} testID="module_screen_unknown_close">
+          <Pressable style={[styles.closeButton, styles.backButton]} testID="module_screen_error_close">
             <Text style={styles.closeButtonText}>Back to map</Text>
           </Pressable>
         </Link>
@@ -123,27 +202,12 @@ export default function ModuleScreen(): ReactElement {
     );
   }
 
-  if (launchState.kind === 'checking_resume') {
-    return (
-      <View style={styles.container} testID="module_screen_loading">
-        <ActivityIndicator size="large" color="#4A6741" testID="module_screen_loading_spinner" />
-        <Text style={styles.loadingText} testID="module_screen_loading_text">
-          Loading {meta.title}…
-        </Text>
-      </View>
-    );
-  }
-
-  const savedState = launchState.kind === 'resume_prompt' ? launchState.savedState : null;
-  // Only mount the playback hook once we're in the 'playing' state. Rendering
-  // the video player before the resume choice would start playback at zero
-  // and defeat the save-and-resume contract.
   if (launchState.kind === 'resume_prompt') {
     return (
       <View style={styles.container} testID="module_screen_resume_gate">
         <ResumePromptModal
           visible
-          sessionState={savedState}
+          sessionState={launchState.savedState}
           onResume={onResume}
           onStartFresh={onStartFresh}
         />
@@ -151,12 +215,14 @@ export default function ModuleScreen(): ReactElement {
     );
   }
 
+  // launchState.kind === 'playing'
   return (
     <PlayingSurface
       moduleId={moduleId}
-      arcId={meta.arcId}
-      title={meta.title}
-      videoSource={meta.videoSource}
+      arcId={launchState.arcId}
+      title={title}
+      videoSource={launchState.videoSource}
+      phaseBoundaries={launchState.phaseBoundaries}
       initialSeekSeconds={launchState.initialSeekSeconds}
       onClose={() => router.push('/')}
     />
@@ -168,18 +234,21 @@ interface PlayingSurfaceProps {
   arcId: string;
   title: string;
   videoSource: string;
+  phaseBoundaries: PhaseBoundary[];
   initialSeekSeconds: number | null;
   onClose: () => void;
 }
 
 function PlayingSurface(props: PlayingSurfaceProps): ReactElement {
-  const { moduleId, arcId, title, videoSource, initialSeekSeconds, onClose } = props;
+  const { moduleId, arcId, title, videoSource, phaseBoundaries, initialSeekSeconds, onClose } =
+    props;
 
   const { player, userInitiatedPauseRef, hasEnded } = useModulePlayback({
     moduleId,
     arcId,
     phase: 'phase_b',
     videoSource,
+    phaseBoundaries,
     initialSeekSeconds,
   });
 
@@ -264,6 +333,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  backButton: {
+    top: 72,
+  },
   closeButtonText: {
     color: '#FFFFFF',
     fontSize: 28,
@@ -295,5 +367,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 16,
     textAlign: 'center',
+    paddingHorizontal: 24,
   },
 });

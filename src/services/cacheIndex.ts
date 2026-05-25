@@ -19,13 +19,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const CACHE_CEILING_BYTES = 3 * 1024 * 1024 * 1024; // 3 GB
 export const MIN_AGE_BEFORE_EVICT_MS = 24 * 60 * 60 * 1000; // 24 hours
 export const CACHE_INDEX_STORAGE_KEY = 'cache_index_v1';
-export const CACHE_INDEX_SCHEMA_VERSION = 1;
+// Schema v2: added contentHash (lowercase hex SHA-256 of base64-encoded file
+// content, matching downloadManager's expo-crypto computation). Entries from
+// v1 fail isValidEntry and are dropped — they will be re-downloaded lazily.
+export const CACHE_INDEX_SCHEMA_VERSION = 2;
 
 export interface CacheEntry {
   assetId: string;
   arcId: string;
   localPath: string;
   sizeBytes: number;
+  /** Lowercase hex SHA-256 of base64(file bytes) — matches downloadManager hash. */
+  contentHash: string;
   /** Unix-epoch ms when the asset was last played to any degree. */
   lastPlayedAt: number;
   /** Unix-epoch ms when the asset was downloaded (for <24h evict floor). */
@@ -191,6 +196,7 @@ function isValidEntry(e: unknown): e is CacheEntry {
     typeof o.arcId === 'string' &&
     typeof o.localPath === 'string' &&
     typeof o.sizeBytes === 'number' &&
+    typeof o.contentHash === 'string' &&
     typeof o.lastPlayedAt === 'number' &&
     typeof o.downloadedAt === 'number'
   );
