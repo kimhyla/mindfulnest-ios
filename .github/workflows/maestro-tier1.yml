@@ -33,6 +33,7 @@ on:
       - "app.config.js"
       - "app.json"
       - "eas.json"
+      - ".easignore"
       - "app/**"
       - "src/**"
       - "maestro/**"

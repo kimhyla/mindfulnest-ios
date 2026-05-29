@@ -27,6 +27,7 @@ on:
       - "plugins/**"
       - "src/dev/**"
       - "eas.json"
+      - ".easignore"
       - ".github/workflows/telemetry-native-scan.yml"
 
 permissions:

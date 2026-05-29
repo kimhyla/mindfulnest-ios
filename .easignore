@@ -1,0 +1,67 @@
+# EAS build upload filter (replaces .gitignore when present).
+# Keep in sync with .gitignore except where noted below.
+# Ref: https://docs.expo.dev/build-reference/easignore/
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# DevTelemetry per-launch auth token (LD-157 4b-hardened (ii))
+mn-devtelemetry-token
+/tmp/mn-devtelemetry-token
+
+# Generated production .ipa from local EAS builds (CI artifact)
+mindfulnest-production.ipa
+ipa-extract/
+
+# Firestore emulator runtime log (regenerated on every emulator start)
+firestore-debug.log
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# Maestro test artifacts (regeneratable)
+*.png
+!assets/*.png
+/.maestro
+
+# Firebase native config files (contain project credentials — never commit)
+GoogleService-Info.plist
+google-services.json
+
+# CI: maestro-tier1.yml and telemetry-native-scan.yml materialize this file from
+# GOOGLE_SERVICE_INFO_PLIST_B64 before `eas build --local`. Negate so prebuild can copy it.
+!GoogleService-Info.plist
