@@ -71,6 +71,22 @@ jobs:
       - name: Checkout PR head
         uses: actions/checkout@v4
 
+      - name: Materialize GoogleService-Info.plist from secret
+        # Firebase iOS config is gitignored (contains project keys). CI writes it from
+        # a base64-encoded GitHub secret before EAS prebuild. To configure:
+        #   base64 -i GoogleService-Info.plist | pbcopy
+        # then paste into Settings → Secrets → GOOGLE_SERVICE_INFO_PLIST_B64
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
+        run: |
+          set -eo pipefail
+          if [ -z "$GOOGLE_SERVICE_INFO_PLIST_B64" ]; then
+            echo "::error::Secret GOOGLE_SERVICE_INFO_PLIST_B64 is not set. Add the base64-encoded GoogleService-Info.plist in repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICE_INFO_PLIST_B64" | base64 -D > GoogleService-Info.plist
+          plutil -lint GoogleService-Info.plist
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:

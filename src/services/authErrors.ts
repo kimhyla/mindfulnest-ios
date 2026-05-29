@@ -1,7 +1,7 @@
 // Firebase Auth error code → user-facing message. v1 ships 4 codes per
 // Counter 3 HIGH (YAGNI on the 20-code map until production surfaces more).
 //
-// Extend opportunistically when a new error is observed in Sentry/logs.
+// Extend opportunistically when a new error is observed in Crashlytics/logs.
 
 export interface AuthErrorMessage {
   readonly userMessage: string;

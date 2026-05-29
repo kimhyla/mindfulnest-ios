@@ -52,12 +52,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ["expo-build-properties", { "ios": { "useModularHeaders": true } }],
     "@react-native-firebase/app",
     "@react-native-firebase/crashlytics",
-    "@sentry/react-native",
     ...(isProduction ? [] : ["./plugins/withDevTelemetryServer"]),
   ],
   extra: {
     devTelemetryEnabled: !isProduction,
-    sentryDsn: process.env.SENTRY_DSN ?? null,
     eas: {
       projectId: "d9b5e6fc-0474-44f4-89db-383437542bc4",
     },

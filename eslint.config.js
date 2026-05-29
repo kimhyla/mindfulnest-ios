@@ -2,11 +2,9 @@
 // Per spec v2 §C7-T1 Agent B audit. Wave B1 preflight 52.
 //
 // Restrictions enforced:
-// 1. no-restricted-imports: bans @sentry/react-native (except via its wrapper),
-//    bugsnag*, rollbar, phaser, react-native-spine, @capacitor/*.
-//    Refs: LD-220 (narrowed by LD-801), LD-157, LD-801.
-//    NOTE: @sentry/react-native permitted ONLY in src/services/sentryService.ts
-//    per LD-801 SENTRY_PERMITTED_ERROR_MONITORING_LD220_NARROWED_V1.
+// 1. no-restricted-imports: bans @sentry/*, bugsnag*, rollbar, phaser,
+//    react-native-spine, @capacitor/*.
+//    Refs: LD-220, LD-157, spec v2 §C7-T1.
 // 2. no-restricted-syntax: dynamic import() with non-literal template arg
 //    (prevents runtime-computed imports that bypass the static ban list).
 // 3. @typescript-eslint/no-explicit-any: error level. Agent B audit fix.
@@ -18,11 +16,9 @@ const tseslint = require("typescript-eslint");
 const reactPlugin = require("eslint-plugin-react");
 const reactHooksPlugin = require("eslint-plugin-react-hooks");
 
-// Banned modules — see LD-220 (narrowed by LD-801), LD-157, spec v2 §C7-T1.
-// @sentry/react-native is permitted ONLY via src/services/sentryService.ts (LD-801).
-// The override at the bottom of this file lifts the ban for that file only.
+// Banned modules — see LD-220, LD-157, spec v2 §C7-T1.
 const BANNED_PATTERNS = [
-  { group: ["@sentry/react-native", "@sentry/*", "@sentry/**"], message: "Import Sentry via src/services/sentryService.ts only — LD-801 SENTRY_PERMITTED_ERROR_MONITORING_LD220_NARROWED_V1." },
+  { group: ["@sentry/react-native", "@sentry/*", "@sentry/**"], message: "Sentry banned — LD-220. Use Firebase Crashlytics via src/services/crashlyticsService.ts." },
   { group: ["bugsnag", "bugsnag/*", "@bugsnag/*"], message: "Bugsnag banned — LD-220." },
   { group: ["rollbar", "rollbar/*"], message: "Rollbar banned — LD-220." },
   { group: ["phaser"], message: "Phaser banned — deferred to V2 per LD-128 ANIMATION_STACK_V1_PATH_D_v2." },
@@ -132,12 +128,4 @@ module.exports = [
     },
   },
 
-  // LD-801: sentryService.ts IS the permitted Sentry wrapper — lift the ban here only.
-  // All other files remain subject to the @sentry/* ban in BANNED_PATTERNS above.
-  {
-    files: ["src/services/sentryService.ts"],
-    rules: {
-      "no-restricted-imports": "off",
-    },
-  },
 ];
