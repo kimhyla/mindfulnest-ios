@@ -1,0 +1,28 @@
+---
+description: App and src conventions — tests before done, creature canon
+globs: app/**,src/**
+alwaysApply: false
+---
+
+# MindfulNest — App layer
+
+## Verification before claiming done
+
+```bash
+npm run lint && npm test && npm run test:coppa-contracts
+```
+
+## Creature canon (Arc 1)
+
+- M1 Tessa, M2 Luna, M3 Benson, M4 Ember, **M5 Bork** (firefly), M6 Bramble
+- Firestore creature id for M5 is `mo` in enums — **child-facing name is Bork**
+
+## Module routing
+
+- `/module/m1` … `/module/m6` — dynamic route `app/module/[moduleId].tsx`
+- Never link to `/intro` or other legacy multi-screen paths
+
+## Dev scaffold vs product
+
+- Placeholder map (`app/index.tsx`) is not shipping UI
+- Dev-only module test controls: wrap in `__DEV__`, label clearly as developer tooling

@@ -2,9 +2,9 @@
 // Uses @react-native-firebase/app-check (DeviceCheck iOS / Play Integrity Android).
 // Must be called at app startup before any Firebase callable is invoked.
 //
-// Ordering gate (LD-802): enforceAppCheck on Cloud Functions remains false
-// until a device-level proof confirms this token attaches to outbound onCall
-// requests. This init wires the client side; the CF flip is a separate step.
+// LD-802 gate closed 2026-05-25: onCall Cloud Functions (e.g. generateModuleDownloadUrl,
+// claimTherapistInvite) use enforceAppCheck: true. Client init here attaches tokens to
+// outbound requests; callables made before initializeAppCheck() resolves will fail.
 import appCheck from '@react-native-firebase/app-check';
 
 export async function initializeAppCheck(): Promise<void> {

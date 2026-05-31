@@ -1,0 +1,70 @@
+# MindfulNest — App CI
+#
+# Runs root lint, unit tests, COPPA function contract scan, and banned-package
+# check on every PR touching app/src code. Complements functions-ci.yml and
+# firestore-rules-test.yml.
+#
+# Refs: STAGE2_SPRINT_A_EXECUTION_SPEC_v1.md SA-002
+
+name: App CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'src/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'eslint.config.js'
+      - 'jest.config.js'
+      - 'tsconfig.json'
+      - '.github/workflows/app-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'src/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'eslint.config.js'
+      - 'jest.config.js'
+      - 'tsconfig.json'
+      - '.github/workflows/app-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  app-ci:
+    name: Lint, test, COPPA contract, banned packages
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.11.0'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: COPPA function contract
+        run: npm run test:coppa-contracts
+
+      - name: Banned packages scan
+        run: node scripts/check-banned-packages.mjs

@@ -43,14 +43,18 @@ export default function MapScreen() {
         <Text style={styles.creature} testID="map_creature_ember">M4 Ember — Heart Stone (Red)</Text>
         <Text style={styles.creature} testID="map_creature_bramble">M6 Bramble — Calm Stone (Blue)</Text>
         <Text style={styles.creature} testID="map_creature_benson">M3 Benson — Courage Stone (Green)</Text>
-        <Text style={styles.creature} testID="map_creature_mo">M5 Mo — Grounding Stone (Purple)</Text>
+        <Text style={styles.creature} testID="map_creature_bork">M5 Bork — Grounding Stone (Purple)</Text>
       </View>
 
-      <Link href="/intro" asChild>
-        <Pressable style={styles.button} testID="map_start_module_button">
-          <Text style={styles.buttonText}>Tap Creature (Start Module)</Text>
-        </Pressable>
-      </Link>
+      {/* DEV-ONLY: temporary module entry until Everdale sprite map ships (master spec §3.2).
+          Not visible in production/preview builds. Child taps creature sprites on the real map. */}
+      {__DEV__ && (
+        <Link href="/module/m1" asChild>
+          <Pressable style={styles.button} testID="map_dev_test_module_button">
+            <Text style={styles.buttonText}>Developer: test module (M1)</Text>
+          </Pressable>
+        </Link>
+      )}
     </View>
   );
 }

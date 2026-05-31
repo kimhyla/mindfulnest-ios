@@ -83,12 +83,6 @@ export default function RootLayout(): ReactElement {
         >
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="index" options={{ title: "MindfulNest — Everdale Map" }} />
-          <Stack.Screen name="intro" options={{ title: "The Call" }} />
-          <Stack.Screen name="phase_a" options={{ title: "Buy-In + Phase A" }} />
-          <Stack.Screen name="phase_b" options={{ title: "Phase B — Guided Meditation" }} />
-          <Stack.Screen name="resolution" options={{ title: "The Rescue" }} />
-          <Stack.Screen name="win" options={{ title: "Win!" }} />
-          <Stack.Screen name="decoration" options={{ title: "My Space" }} />
           <Stack.Screen name="module/[moduleId]" options={{ headerShown: false }} />
         </Stack>
       </AuthGate>

@@ -1,0 +1,28 @@
+---
+description: MindfulNest core architecture — LD-280 single MP4, map sprites, no legacy routes
+alwaysApply: true
+---
+
+# MindfulNest — Architecture (LD-280 + master spec)
+
+## Narrative / playback (LD-280)
+
+- Every module is **one atomic MP4** played by **one `expo-video` instance**.
+- Route: `/module/[moduleId]` only. **No** separate intro / phase_a / phase_b / resolution / win / decoration **screens**.
+- Banned files (CI enforced): `app/intro.tsx`, `app/phase_a.tsx`, `app/phase_b.tsx`, `app/resolution.tsx`, `app/win.tsx`, `app/decoration.tsx`.
+- **No** `expo-audio` in the module playback path. **No** cue-timed RN overlays over video.
+
+## Map / home (master spec §3.2)
+
+- **Shipping UX:** scrollable Everdale WebP map; child **taps creature sprites** to start a module — not a generic "Start module" button.
+- Current `app/index.tsx` is a **Stage 1 dev scaffold** (placeholder text). Do not treat scaffold controls as kid-facing UI.
+- Scaffold/dev controls must be **`__DEV__` only** — never visible in production/preview builds.
+
+## Sentry (LD-801)
+
+- Import `@sentry/react-native` **only** in `src/services/sentryService.ts`.
+- All other files use the wrapper.
+
+## Firebase auth imports
+
+- Screens import from `src/services/auth.ts`, not `firebase/auth` directly.

@@ -1,9 +1,10 @@
 # MindfulNest — Dependency Audit
 #
 # Walks the FULL package-lock.json (not just top-level) and fails on:
-# - Banned packages per spec v2 §C7-T1 (Sentry, Bugsnag, Rollbar, Phaser,
-#   react-native-spine, Capacitor). COPPA-6 (no behavioral advertising)
-#   + LD-157 (dev-only native module exclusion pattern).
+# - Banned packages per spec v2 §C7-T1 (Bugsnag, Rollbar, Phaser,
+#   react-native-spine, Capacitor). @sentry/react-native permitted per LD-801
+#   (import only via src/services/sentryService.ts; ESLint enforces).
+#   COPPA-6 (no behavioral advertising) + LD-157 (dev-only native exclusion).
 # - Known CVE in any dependency at severity >= high.
 #
 # Runs on every PR + daily schedule (catches new CVEs between PRs).
