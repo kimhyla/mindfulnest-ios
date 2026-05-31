@@ -177,6 +177,27 @@ export function evictLru(bytesNeeded: number, options: EvictOptions): {
   return { freedBytes, evictedAssetIds };
 }
 
+/**
+ * Force-evict every cached entry outside the active arc, ignoring the normal
+ * 24h floor. Used only under the <200 MB emergency storage policy.
+ */
+export function evictAllExceptArc(pinnedArcId: string): {
+  freedBytes: number;
+  evictedAssetIds: string[];
+} {
+  let freedBytes = 0;
+  const evictedAssetIds: string[] = [];
+
+  for (const entry of Array.from(memoryIndex.values())) {
+    if (entry.arcId === pinnedArcId) continue;
+    memoryIndex.delete(entry.assetId);
+    freedBytes += entry.sizeBytes;
+    evictedAssetIds.push(entry.assetId);
+  }
+
+  return { freedBytes, evictedAssetIds };
+}
+
 /** Test-only: reset in-memory state without touching AsyncStorage. */
 export function __resetForTests(): void {
   memoryIndex = new Map();

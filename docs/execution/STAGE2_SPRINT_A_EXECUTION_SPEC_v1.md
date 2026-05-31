@@ -309,7 +309,7 @@ Update `appCheckService.ts` header to reflect LD-802 gate closed 2026-05-25: cli
 
 - [ ] `grep 'href="/intro"' app/` → no matches
 - [ ] `grep 'href="/module/m1"' app/index.tsx` → match
-- [ ] `testID="map_start_module_button"` preserved (Maestro Tier 1 / home_screen.yaml)
+- [x] scaffold control changed to dev-only `testID="map_dev_test_module_button"` (Maestro updated)
 - [ ] `legacy-file-gate` banned files still absent
 
 **Gates:** `GATE:grep`, `GATE:legacy`, `GATE:lint`, `GATE:browser` (after SA-006)

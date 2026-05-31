@@ -19,6 +19,7 @@ import { arcIdForModule } from '../data/arcManifest';
 import {
   loadFromStorage,
   get as getCacheEntry,
+  evictAllExceptArc,
   evictLru,
   unregister,
   register,
@@ -27,8 +28,22 @@ import {
 import { pathFor } from './cachePaths';
 import { downloadAsset, verifyCachedFile, CacheHashMismatchError } from './downloadManager';
 import { getModuleDownloadUrl, type PhaseBoundary } from './cloudFunctions';
+import { ensureAppCheckReady } from './appCheckService';
+import { checkDeviceFreeSpace, type StoragePolicy } from './storageCheck';
 
 export { CacheHashMismatchError };
+
+export class LowStorageError extends Error {
+  readonly policy: StoragePolicy;
+  readonly freeBytes: number;
+
+  constructor(policy: StoragePolicy, freeBytes: number) {
+    super(`Low storage: ${policy} (${freeBytes} bytes free).`);
+    this.name = 'LowStorageError';
+    this.policy = policy;
+    this.freeBytes = freeBytes;
+  }
+}
 
 export interface ResolvedModule {
   localPath: string;
@@ -64,6 +79,7 @@ export async function resolveModule(moduleId: string): Promise<ResolvedModule> {
       if (valid) {
         // SHORTCUT_PHASE_BOUNDARIES_CACHE_HIT_CF_V1: call CF to retrieve
         // phaseBoundaries — not stored in cacheIndex V1 (see header comment).
+        await ensureAppCheckReady();
         const cfResult = await getModuleDownloadUrl({ moduleId: id });
         return {
           localPath,
@@ -84,16 +100,25 @@ export async function resolveModule(moduleId: string): Promise<ResolvedModule> {
   }
 
   // Cache miss: fetch signed URL from CF
+  await ensureAppCheckReady();
   const cfResult = await getModuleDownloadUrl({ moduleId: id });
   const { url, contentHash, sizeBytes, phaseBoundaries } = cfResult.data;
+
+  const storage = await checkDeviceFreeSpace();
+  if (storage.policy === 'force_evict_all_but_active_arc') {
+    const { evictedAssetIds } = evictAllExceptArc(arcId);
+    await deleteEvictedAssets(evictedAssetIds);
+    if (evictedAssetIds.length > 0) await saveToStorage();
+    throw new LowStorageError(storage.policy, storage.freeBytes);
+  }
+  if (storage.policy === 'block_new_downloads') {
+    throw new LowStorageError(storage.policy, storage.freeBytes);
+  }
 
   // LRU eviction if needed before download (LD-282).
   // Pin the active arc so it is never evicted while the child is playing.
   const { evictedAssetIds } = evictLru(sizeBytes, { pinnedArcId: arcId });
-  for (const evictedId of evictedAssetIds) {
-    const evictedArcId = arcIdForModule(evictedId.replace(/_module_v\d+$/, '')) ?? 'unknown';
-    await FileSystem.deleteAsync(pathFor(evictedArcId, evictedId), { idempotent: true });
-  }
+  await deleteEvictedAssets(evictedAssetIds);
   if (evictedAssetIds.length > 0) await saveToStorage();
 
   // Download + SHA-256 integrity verify (throws CacheHashMismatchError on mismatch)
@@ -112,4 +137,11 @@ export async function resolveModule(moduleId: string): Promise<ResolvedModule> {
   await saveToStorage();
 
   return { localPath: result.localPath, phaseBoundaries, arcId, contentHash };
+}
+
+async function deleteEvictedAssets(evictedAssetIds: readonly string[]): Promise<void> {
+  for (const evictedId of evictedAssetIds) {
+    const evictedArcId = arcIdForModule(evictedId.replace(/_module_v\d+$/, '')) ?? 'unknown';
+    await FileSystem.deleteAsync(pathFor(evictedArcId, evictedId), { idempotent: true });
+  }
 }

@@ -28,6 +28,14 @@ export interface IdTokenClaims {
   // Other custom claims may appear; keep narrow for v1.
 }
 
+export interface RefreshClaimsUntilRoleOptions {
+  readonly timeoutMs?: number;
+  readonly intervalMs?: number;
+}
+
+export const CLAIMS_ROLE_RETRY_TIMEOUT_MS = 5_000;
+export const CLAIMS_ROLE_RETRY_INTERVAL_MS = 250;
+
 export async function signIn(email: string, password: string): Promise<AuthUser> {
   const cred = await signInWithEmailAndPassword(firebaseAuth, email, password);
   return cred.user;
@@ -57,4 +65,32 @@ export async function refreshClaims(): Promise<IdTokenClaims> {
   const result = await user.getIdTokenResult(true);
   const claims = result.claims;
   return { role: claims.role as IdTokenClaims['role'] };
+}
+
+/**
+ * Retry claim refresh until the async onParentSignup trigger has attached a role.
+ * Bounded so sign-up never hangs indefinitely if the trigger or network is down.
+ */
+export async function refreshClaimsUntilRole(
+  options: RefreshClaimsUntilRoleOptions = {},
+): Promise<IdTokenClaims> {
+  const timeoutMs = options.timeoutMs ?? CLAIMS_ROLE_RETRY_TIMEOUT_MS;
+  const intervalMs = options.intervalMs ?? CLAIMS_ROLE_RETRY_INTERVAL_MS;
+  const deadline = Date.now() + timeoutMs;
+  let lastClaims: IdTokenClaims = {};
+
+  do {
+    lastClaims = await refreshClaims();
+    if (lastClaims.role) return lastClaims;
+    if (Date.now() >= deadline) break;
+    await delay(intervalMs);
+  } while (true);
+
+  return lastClaims;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }

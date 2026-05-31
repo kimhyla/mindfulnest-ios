@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Link } from 'expo-router';
-import { signUp, refreshClaims } from '../../src/services/auth';
+import { refreshClaimsUntilRole, signUp } from '../../src/services/auth';
 import { translateAuthError } from '../../src/services/authErrors';
 
 export default function SignUpScreen(): ReactElement {
@@ -29,7 +29,7 @@ export default function SignUpScreen(): ReactElement {
       // force-refresh the token so claims.role=='parent' is available.
       // Rules v7 don't require claims (isParent() reads /parents/{uid} doc),
       // but downstream CFs may read the claim — refresh keeps them aligned.
-      await refreshClaims().catch(() => undefined);
+      await refreshClaimsUntilRole().catch(() => undefined);
     } catch (e: unknown) {
       setError(translateAuthError(e).userMessage);
     } finally {

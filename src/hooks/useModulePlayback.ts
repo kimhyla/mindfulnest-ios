@@ -38,6 +38,7 @@ import {
   type ModulePhase,
 } from '../services/sessionState';
 import { markModuleComplete } from '../services/progressionState';
+import { markPlayed } from '../services/cacheIndex';
 
 /** How often to persist playback position during Phase B. */
 export const SAVE_INTERVAL_MS = 5_000;
@@ -112,6 +113,10 @@ export function useModulePlayback(options: UseModulePlaybackOptions): UseModuleP
       void unpinArc();
     };
   }, [arcId]);
+
+  useEffect(() => {
+    void markPlayed(`${moduleId}_module_v1`);
+  }, [moduleId]);
 
   // Track isPlaying + hasEnded via expo-video's native events. The
   // playingChange listener is also the interruption detector — see

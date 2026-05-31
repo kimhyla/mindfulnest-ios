@@ -16,10 +16,11 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { VideoView } from 'expo-video';
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { Link, Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useModulePlayback, type PhaseBoundary } from '../../src/hooks/useModulePlayback';
 import { ResumePromptModal } from '../../src/components/ResumePromptModal';
+import { useAuth } from '../../src/hooks/useAuth';
 import {
   RESUME_MODE,
   clearSessionState,
@@ -27,7 +28,7 @@ import {
   saveSessionState,
   type SessionState,
 } from '../../src/services/sessionState';
-import { resolveModule, CacheHashMismatchError } from '../../src/services/catalogService';
+import { resolveModule, CacheHashMismatchError, LowStorageError } from '../../src/services/catalogService';
 
 // Module title lookup — display only, does not affect routing or catalog logic.
 const MODULE_TITLES: Record<string, string> = {
@@ -49,6 +50,7 @@ type LaunchState =
 export default function ModuleScreen(): ReactElement {
   const params = useLocalSearchParams<{ moduleId: string }>();
   const router = useRouter();
+  const { status } = useAuth();
   const moduleId = typeof params.moduleId === 'string' ? params.moduleId.toLowerCase() : '';
   const title = MODULE_TITLES[moduleId] ?? moduleId;
 
@@ -56,6 +58,7 @@ export default function ModuleScreen(): ReactElement {
 
   // Phase 1: resolve the module from the local cache or CDN (LD-406 / Stream C).
   useEffect(() => {
+    if (status !== 'signedIn') return;
     if (!moduleId) {
       setLaunchState({ kind: 'error', message: `Unknown module: ${moduleId}` });
       return;
@@ -115,13 +118,15 @@ export default function ModuleScreen(): ReactElement {
         const message =
           err instanceof CacheHashMismatchError
             ? 'Download corrupted — tap to retry.'
+            : err instanceof LowStorageError
+              ? 'Not enough storage to download this module. Ask a grown-up to free space.'
             : 'Could not load module. Check your connection.';
         setLaunchState({ kind: 'error', message });
       });
     return () => {
       cancelled = true;
     };
-  }, [moduleId]);
+  }, [moduleId, status]);
 
   const onResume = useCallback(() => {
     setLaunchState((prev) => {
@@ -151,6 +156,7 @@ export default function ModuleScreen(): ReactElement {
   }, [moduleId]);
 
   const onRetry = useCallback(() => {
+    if (status !== 'signedIn') return;
     setLaunchState({ kind: 'downloading' });
     resolveModule(moduleId)
       .then((mod) => {
@@ -166,10 +172,27 @@ export default function ModuleScreen(): ReactElement {
         const message =
           err instanceof CacheHashMismatchError
             ? 'Download corrupted — tap to retry.'
+            : err instanceof LowStorageError
+              ? 'Not enough storage to download this module. Ask a grown-up to free space.'
             : 'Could not load module. Check your connection.';
         setLaunchState({ kind: 'error', message });
       });
-  }, [moduleId]);
+  }, [moduleId, status]);
+
+  if (status === 'signedOut') {
+    return <Redirect href="/sign-in" />;
+  }
+
+  if (status === 'loading') {
+    return (
+      <View style={styles.container} testID="module_screen_auth_loading">
+        <ActivityIndicator size="large" color="#4A6741" testID="module_screen_auth_loading_spinner" />
+        <Text style={styles.loadingText} testID="module_screen_auth_loading_text">
+          Checking sign-in…
+        </Text>
+      </View>
+    );
+  }
 
   if (launchState.kind === 'downloading') {
     return (

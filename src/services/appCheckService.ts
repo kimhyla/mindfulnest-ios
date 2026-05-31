@@ -7,7 +7,20 @@
 // outbound requests; callables made before initializeAppCheck() resolves will fail.
 import appCheck from '@react-native-firebase/app-check';
 
+let initPromise: Promise<void> | null = null;
+
 export async function initializeAppCheck(): Promise<void> {
+  if (initPromise) return initPromise;
+
+  initPromise = initializeAppCheckOnce();
+  return initPromise;
+}
+
+export async function ensureAppCheckReady(): Promise<void> {
+  await initializeAppCheck();
+}
+
+async function initializeAppCheckOnce(): Promise<void> {
   const provider = appCheck().newReactNativeFirebaseAppCheckProvider();
   provider.configure({
     apple: {
