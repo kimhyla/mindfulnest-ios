@@ -29,6 +29,8 @@ import {
   type SessionState,
 } from '../../src/services/sessionState';
 import { resolveModule, CacheHashMismatchError, LowStorageError } from '../../src/services/catalogService';
+import { arcIdForModule, moduleOrderForArc } from '../../src/data/arcManifest';
+import { isModuleUnlocked, loadProgression } from '../../src/services/progressionState';
 
 // Module title lookup — display only, does not affect routing or catalog logic.
 const MODULE_TITLES: Record<string, string> = {
@@ -44,6 +46,7 @@ const MODULE_TITLES: Record<string, string> = {
 type LaunchState =
   | { kind: 'downloading' }
   | { kind: 'error'; message: string }
+  | { kind: 'locked'; message: string }
   | { kind: 'resume_prompt'; savedState: SessionState; videoSource: string; phaseBoundaries: PhaseBoundary[]; arcId: string }
   | { kind: 'playing'; initialSeekSeconds: number | null; videoSource: string; phaseBoundaries: PhaseBoundary[]; arcId: string };
 
@@ -65,7 +68,25 @@ export default function ModuleScreen(): ReactElement {
     }
     let cancelled = false;
     setLaunchState({ kind: 'downloading' });
-    resolveModule(moduleId)
+    void (async () => {
+      const arcId = arcIdForModule(moduleId);
+      const moduleOrder = arcId ? moduleOrderForArc(arcId) : undefined;
+      if (!arcId || !moduleOrder) {
+        setLaunchState({ kind: 'error', message: `Unknown module: ${moduleId}` });
+        return;
+      }
+
+      const progression = await loadProgression(arcId);
+      if (cancelled) return;
+      if (!isModuleUnlocked(progression, moduleId, moduleOrder)) {
+        setLaunchState({
+          kind: 'locked',
+          message: 'This part of Everdale is still locked. Finish the earlier creature modules first.',
+        });
+        return;
+      }
+
+      await resolveModule(moduleId)
       .then((mod) => {
         if (cancelled) return;
         // Phase 2: check for a saved resume position (LD-286).
@@ -123,6 +144,7 @@ export default function ModuleScreen(): ReactElement {
             : 'Could not load module. Check your connection.';
         setLaunchState({ kind: 'error', message });
       });
+    })();
     return () => {
       cancelled = true;
     };
@@ -218,6 +240,21 @@ export default function ModuleScreen(): ReactElement {
         </Pressable>
         <Link href="/" asChild>
           <Pressable style={[styles.closeButton, styles.backButton]} testID="module_screen_error_close">
+            <Text style={styles.closeButtonText}>Back to map</Text>
+          </Pressable>
+        </Link>
+      </View>
+    );
+  }
+
+  if (launchState.kind === 'locked') {
+    return (
+      <View style={styles.container} testID="module_screen_locked">
+        <Text style={styles.errorText} testID="module_screen_locked_text">
+          {launchState.message}
+        </Text>
+        <Link href="/" asChild>
+          <Pressable style={styles.closeButton} testID="module_screen_locked_close">
             <Text style={styles.closeButtonText}>Back to map</Text>
           </Pressable>
         </Link>
