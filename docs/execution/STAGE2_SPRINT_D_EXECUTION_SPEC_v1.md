@@ -4,7 +4,9 @@
 **Date:** 2026-06-01 (v2 revision — art pipeline + Magic Tap + per-arc scroll)  
 **Sprint goal:** Replace the Stage 1 text scaffold with kid-facing Everdale map navigation — scrollable map, creature sprite taps, progression-aware locks — per master spec §3.2 and `.cursor/rules/mindfulnest-architecture.mdc`.
 
-**v2 change summary:** Splits work into **D0 (layout + art pipeline lock)** before any app code. Adds **per-arc scroll axis**, **Magic Tap as a separate interaction mode** (post–Event 3), and a **manifest-first** workflow so final art is an asset swap, not a code rewrite.
+**v2 change summary:** Splits work into **D0 (layout + art pipeline lock)** before any app code. Adds **per-arc scroll axis**, **ambient Magic Tap** (post–Oliver Meet — no wand toggle; see canon reference), and a **manifest-first** workflow so final art is an asset swap, not a code rewrite.
+
+**Canon index (all map requirements excavated):** `EVERDALE_MAP_CANON_REFERENCE_v1.md`
 
 ---
 
@@ -43,8 +45,8 @@
 | # | Decision | Spec treatment |
 |---|----------|----------------|
 | K1 | **Per-arc scroll axis** — e.g. Arc 1 horizontal, some homeworlds vertical | `scrollAxis` per arc in map manifest |
-| K2 | **Magic Tap** unlocks after **Event 3** (Oliver / wand narrative) | Separate **wand mode**; does not replace module-start taps |
-| K3 | Magic Tap: tap creatures → giggle/oof; tap plants → magic burst; later wins change effect skins/colors via `magicTapTier` | D2 scope; D1 builds hook points only |
+| K2 | **Magic Tap** unlocks after **Oliver Meet** (Event 3b, post-M4 in play order) | **Ambient** model per `NARRATIVE_DECISIONS_UNIFIED_v2_9` §3.4 — no mode toggle |
+| K3 | Magic Tap: creatures → dialogue + giggle/sparkle; empty ground/plants → burst/bloom; tiers/skins via `magicTapTier` | D2 scope; D1 builds hook points only |
 | K4 | **Art pipeline discussion before code** | D0 must complete before D1 |
 | K5 | Hit regions / coordinates | Defined in D0 layout lock — not guessed during D1 coding |
 
@@ -135,16 +137,22 @@ D1 uses the **same manifest** with:
 
 When D3 final art arrives: swap image files + run delivery script. **Zero layout code changes** if manifest rects unchanged.
 
-### 6.5 Two tap modes (avoids Magic Tap / module-start confusion)
+### 6.5 Tap priority — ambient Magic Tap (canon: ND v2.9 §3.4)
 
-| Mode | When | Creature tap | Plant tap |
-|------|------|----------------|-----------|
-| **Navigate** (default) | Always | Unlocked → `/module/mX`; locked → soft feedback | No-op or subtle rustle |
-| **Wand** | After Event 3 + child toggles wand ON | Reaction animation + sound (giggle/oof); **does not** start module | Magic burst particle + optional coin roll (LD-338) |
+After Oliver Meet, **no wand button, no mode toggle**. Hit detection priority:
 
-**UX invariant:** Module start requires **Navigate mode**. Wand mode shows visible wand icon (lit). Toggling wand OFF returns to Navigate instantly.
+| Priority | Target | Behavior |
+|----------|--------|----------|
+| 1 | Nav bar, My House door | Normal navigation — no sparkle |
+| 2 | **Trigger sprite** (pulsing next module) | Start module if unlocked |
+| 3 | Creature sprite (non-trigger) | Dialogue + happy reaction (giggle/spin) + sparkle accent |
+| 4 | Zone feature landmark | Open zone popup + subtle sparkle |
+| 5 | Empty map space (grass, path, plants) | Pure Magic Tap — bloom, burst, trail |
 
-This matches Kim's intent: Magic Tap is **play**, not navigation.
+**Before Oliver Meet:** rows 5 and sparkle accents on 3–4 do not fire.  
+**Module start:** only via trigger sprites (or deep link backstop on `/module/[moduleId]`).
+
+Full feature inventory: `EVERDALE_MAP_CANON_REFERENCE_v1.md` §3–§5.
 
 ### 6.6 What we deliberately defer (fewer iterations now)
 
@@ -186,19 +194,20 @@ Full V1 map vision includes 3 parallax layers, 10 arc zones, time-of-day tint (m
 
 **D1 exit:** Child taps Tessa → m1; locked Luna does not enter m2; no generic start button in preview.
 
-### Phase D2 — Magic Tap layer (post–Event 3)
+### Phase D2 — Ambient Magic Tap layer (post–Oliver Meet)
 
 **Depends on narrative unlock signal** (local flag until Firestore child doc wired in app).
 
 | ID | Work | Classification |
 |----|------|----------------|
-| SD-020 | Wand toggle UI (visible only when `magicTapUnlocked`) | P1 |
-| SD-021 | Wand mode: creature `magicTap` reactions (Reanimated + optional bundled sound stub) | P1 |
-| SD-022 | Wand mode: plant `magicTap` burst effect | P1 |
+| SD-020 | `magicTapUnlocked` gate (Oliver Meet / Event 3b) | P1 |
+| SD-021 | Empty-space tap → tier-1 particle burst (Reanimated + sound stub) | P1 |
+| SD-022 | Creature tap → sparkle accent layered on dialogue/reaction path | P1 |
 | SD-023 | Hook `magicTapTier` for effect variant selection (tier 1 default; skins when art exists) | P2 |
-| SD-024 | LD-338 coin/rare drop roll — **stub or defer** if Cloud Function not ready; UI must not block | P3 |
+| SD-024 | Wand cosmetic on avatar sprite (permanent layer — not nav button) | P2 |
+| SD-025 | LD-338 coin/rare drop roll — **stub or defer** if Cloud Function not ready | P3 |
 
-**Unlock gate:** `magicTapUnlocked === true` after Event 3 narrative completion (exact signal TBD with narrative team — may start as dev flag for QA).
+**Unlock gate:** `magicTapUnlocked === true` after Oliver Meet (Arc 1 skeleton Event 3b). Dev flag OK for QA until narrative hook exists in app.
 
 ### Phase D3 — Final Arc 1 art swap
 
@@ -309,7 +318,7 @@ This is the feasible, mostly-automated path without sacrificing quality:
 
 | # | Question | Recommendation |
 |---|----------|----------------|
-| 1 | Arc 1 canvas aspect ratio? | **3840×1080** (3.55:1 horizontal panorama) — adjust if your mental composition differs |
+| 1 | Arc 1 canvas aspect ratio? | **~2:1 horizontal** (~4096×2048 per VPG) — see canon reference §2 diagrams |
 | 2 | Locked creature UX? | **(A) shake only** — module route stays backstop for deep links |
 | 3 | D1 with placeholders until masters? | **Yes** — unblocks navigation QA while you paint |
 | 4 | Magic Tap unlock signal at D2? | Dev flag first → wire to Event 3 completion when narrative hook exists in app |
@@ -368,7 +377,7 @@ D4: parallax / Maestro / polish
 | Risk | Mitigation |
 |------|------------|
 | Art painted before layout lock | D0 gate; manifest-first workflow §6 |
-| Magic Tap confused with module start | Separate wand mode §6.5 |
+| Magic Tap confused with module start | Tap priority + trigger sprites only start modules §6.5 |
 | Hit targets too small | Manifest validator + 44 pt minimum |
 | Deep link bypass | Module route lock unchanged (Sprint C) |
 | Scope creep (parallax, 10 arcs) | D4 explicit deferral |
@@ -391,4 +400,4 @@ D4: parallax / Maestro / polish
 | Date | Version | Change |
 |------|---------|--------|
 | 2026-06-01 | v1 | Initial Sprint D spec from post–PR-32 ground truth |
-| 2026-06-01 | v2 | Manifest-first art pipeline; per-arc scroll; Magic Tap mode split; D0 gate before code; Kim decisions K1–K5 |
+| 2026-06-01 | v2 | Manifest-first art pipeline; per-arc scroll; ambient Magic Tap; D0 gate; canon reference doc |
