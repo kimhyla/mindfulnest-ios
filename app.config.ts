@@ -45,11 +45,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-router",
     "expo-video",
     "expo-audio",
-    // expo-build-properties: sets use_modular_headers: true in CocoaPods for
-    // @react-native-firebase v24 Swift pods (FirebaseCoreInternal,
-    // FirebaseCrashlytics, FirebaseSessions). Without this, CocoaPods fails
-    // with "does not define modules" error on React Native Firebase v24.
-    ["expo-build-properties", { "ios": { "useModularHeaders": true } }],
+    "expo-asset",
+    // React Native Firebase v24 requires static frameworks on iOS. Modular
+    // headers break FirebaseAuth's generated Swift header imports.
+    ["expo-build-properties", { "ios": { "useFrameworks": "static" } }],
     "@react-native-firebase/app",
     "@react-native-firebase/crashlytics",
     ...(isProduction ? [] : ["./plugins/withDevTelemetryServer"]),

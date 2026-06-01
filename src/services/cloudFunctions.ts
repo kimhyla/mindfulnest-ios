@@ -2,10 +2,12 @@
 // LD-406: app never calls Firebase Storage directly — all CDN URLs are
 // obtained via this CF, which validates auth + entitlement and issues a
 // short-lived signed URL.
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { firebaseApp } from './firebase';
+//
+// LD-278: callable wrappers use @react-native-firebase/functions so auth context
+// comes from the same native Firebase stack as @react-native-firebase/auth.
+import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 
-const functions = getFunctions(firebaseApp, 'us-central1');
+const usCentral1Functions = getFunctions(undefined, 'us-central1');
 
 export interface ModuleDownloadUrlRequest {
   moduleId: string;
@@ -29,4 +31,4 @@ export interface ModuleDownloadUrlResponse {
 export const getModuleDownloadUrl = httpsCallable<
   ModuleDownloadUrlRequest,
   ModuleDownloadUrlResponse
->(functions, 'generateModuleDownloadUrl');
+>(usCentral1Functions, 'generateModuleDownloadUrl');
