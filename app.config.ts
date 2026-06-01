@@ -46,11 +46,27 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-video",
     "expo-audio",
     "expo-asset",
-    // React Native Firebase v24 requires static frameworks on iOS. Modular
-    // headers break FirebaseAuth's generated Swift header imports.
-    ["expo-build-properties", { "ios": { "useFrameworks": "static" } }],
     "@react-native-firebase/app",
+    "@react-native-firebase/auth",
+    "@react-native-firebase/app-check",
     "@react-native-firebase/crashlytics",
+    // RN Firebase requires static frameworks; forceStaticLinking avoids
+    // RNFBApp non-modular React-Core header errors with prebuilt RN core.
+    [
+      "expo-build-properties",
+      {
+        ios: {
+          useFrameworks: "static",
+          forceStaticLinking: [
+            "RNFBApp",
+            "RNFBAuth",
+            "RNFBAppCheck",
+            "RNFBCrashlytics",
+            "RNFBFunctions",
+          ],
+        },
+      },
+    ],
     ...(isProduction ? [] : ["./plugins/withDevTelemetryServer"]),
   ],
   extra: {
