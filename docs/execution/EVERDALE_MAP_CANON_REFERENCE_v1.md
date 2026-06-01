@@ -67,7 +67,13 @@ Some later arcs can use a **tall** map. Child pans **up ↕ down**.
 ```
 
 **Kim decision (2026-06-01):** Arc 1 = horizontal; per-arc axis can differ later.  
-**D0 action:** Lock Arc 1 as **horizontal ~2:1** unless you prefer a different wide shape after seeing a sketch.
+**Kim decision (2026-06-01 review):** **One single continuous Everdale world** — My House, Heartwood, and every creature home / fidget entry spot are **regions on the same persistent map**, not separate screens or separate background paintings. The child **pans a short distance** between neighborhoods (Ori-style: zoomed-in viewport, cannot see the whole valley at once). This **simplifies art**: one master illustration, additive overlays for awakening — not one background per module.
+
+**Canon alignment:** This is **not new** — Bible v13.13 §2 (“persistent illustrated map… viewport pans”), VPG §4.2 (one stitched panorama + tile grid), ND v2.9 §3.5 (zone fidgets = popup **on top of** the same map, tap back returns to map). Engineering manifest still places **hotspots** on one `arc1.map.json` canvas.
+
+**Kim decision (2026-06-01 review):** **Exclude Mountain Kingdom** from Arc 1 map art (no misty peaks in background). Bible/VPG mention distant peaks for lore foreshadow — **deferred / cut for Arc 1 art scope.**
+
+**D0 action:** Lock scroll **extent** on first sketch — Kim prefers **moderate pan** (“scroll a little”) over an ultra-wide poster; exact pixel width TBD from ChatGPT layout iteration (may be shorter than VPG’s 4096×2048 default).
 
 ---
 
@@ -128,7 +134,7 @@ From **Visual Production Guide §4.2** + **Bible World Map table**:
 | 6 | Ember's Hillside | After M4 | Glow Charge zone |
 | 7 | Bramble's Garden | After M6 | Dig & Find zone |
 | 8 | Twilight Grove | After M5 | Bork's Sound Painting zone |
-| 9 | Mountain Kingdom (background) | Visible Day 1, story Arc 2+ | Misty peaks |
+| 9 | ~~Mountain Kingdom (background)~~ | **Excluded from Arc 1 art** (Kim 2026-06-01) | Was lore foreshadow in Bible/VPG — not painted in Arc 1 map |
 
 **Play order ≠ M-number order** (Arc 1 skeleton):
 
@@ -205,11 +211,16 @@ Full verbatim blocks: Dropbox `Arc Skeletons/ARC_01_SKELETON_FINAL.md` (search `
 
 ### 8.1 Before D0 closes (Kim + agent, ~30 min)
 
-- [ ] Walk Arc 1 skeleton **MAP STATE CHANGES** table (§6 above) — anything missing from your mental model?
-- [ ] Confirm horizontal ~2:1 for Arc 1 (§2 diagrams)
-- [ ] Confirm ambient Magic Tap (§5) — no wand toggle
-- [ ] Confirm locked creature = shake only (Navigate path)
-- [ ] Placeholders OK for D1 while art paints (yes, 2026-06-01)
+- [x] Walk Arc 1 skeleton **MAP STATE CHANGES** — all 8 return-to-map blocks read (`ARC_01_SKELETON_FINAL.md`); §6 table matches skeleton; First Flower added from Bible post-M1 (not verbatim in skeleton MAP STATE block)
+- [x] **Single persistent Everdale map** — all areas are regions on one scrollable world (Kim 2026-06-01)
+- [x] **Mountain Kingdom excluded** from Arc 1 map art (Kim 2026-06-01)
+- [x] Horizontal pan, moderate scroll / zoomed viewport (Kim 2026-06-01)
+- [x] Play order M1→M2→M4→Oliver→M6→M3→M5 (Kim 2026-06-01)
+- [x] Ambient Magic Tap (§5) — no wand toggle (Kim 2026-06-01)
+- [x] Locked creature = shake only (Kim 2026-06-01)
+- [x] Placeholders OK for D1 (Kim 2026-06-01)
+- [x] Sprint D phasing OK — nav/zone features post-D1 (Kim 2026-06-01)
+- [ ] **`arc1.map.json` signed off** — pending layout sketch iteration (ChatGPT prompt below)
 
 ### 8.2 Before D1 code starts
 
@@ -247,11 +258,37 @@ Full verbatim blocks: Dropbox `Arc Skeletons/ARC_01_SKELETON_FINAL.md` (search `
 
 | # | Item | Notes |
 |---|------|-------|
-| O1 | Final Arc 1 composition sketch | Kim — even rough markup on screenshot |
+| O1 | Final Arc 1 composition sketch | ChatGPT iteration from prompt in §12; Kim approves layout |
 | O2 | STYLE_LOCK reference PNG | First art pipeline output |
 | O3 | Exact trigger-sprite pulse art | Engineering can use Reanimated placeholder |
 | O4 | Magic Tap particle tier assets | 5 tiers; tier 1 enough for D2 |
 | O5 | Nav bar layout (bottom tabs vs top) | Master spec says TBD |
+
+---
+
+## 12. ChatGPT layout prompt (D0 sketch iteration)
+
+Copy-paste into ChatGPT (DALL·E / image generation) or similar. Iterate: “move Heartwood more central”, “add labels”, etc.
+
+**Prompt v1 — full Arc 1 composition (dormant Everdale):**
+
+```
+Game map concept art for a children's mindfulness iPad app. ONE single continuous illustrated world — not separate panels.
+
+Style: warm watercolor storybook, soft Pixar/Ori and the Blind Forest mood, painterly, inviting, ages 6–8. Horizontal wide composition (~2:1 aspect) meant to be panned slowly on a phone — the viewer sees only part of the valley at a time, like a zoomed-in camera on a large background.
+
+Scene: "Everdale" after a long magical sleep — gentle ruin, overgrown but peaceful, NOT scary. Dormant grey Heartwood tree stump at the CENTER of the valley with six empty dark sockets where runestones will glow later. Winding entrance path from the LEFT with a wooden sign "Everdale". To the left of center: peaceful pond with lily pads and a small cozy cottage (My House) among trees. UPPER area: massive ancient Great Oak with a tiny treehouse in branches. RIGHT side regions on the SAME continuous hillside: open sunny meadow with wildflowers and a rabbit burrow entrance; fox hillside with round hobbit-like door in hill; forest-edge garden with cave entrance framed by logs; twilight grove with bioluminescent mushrooms and a lantern-shaped home.
+
+All areas must feel like ONE connected forest valley — shared paths, consistent lighting, same art style, no borders between zones. Empty of characters. No mountains or distant kingdoms in the background — only forest, hills, and sky that belong to Everdale.
+
+No text UI, no characters, no buttons. Landscape only. High detail, production-quality children's game map reference.
+```
+
+**Prompt v2 — if v1 is too wide:** add `“Moderate width only — roughly 1.5:1 aspect, all key landmarks visible within two screen-widths of panning.”`
+
+**Prompt v3 — labeled layout for engineering:** after you like a composition, `“Same image but add subtle numbered circles 1–8 at: 1 Entrance path, 2 Pond/My House, 3 Heartwood, 4 Great Oak, 5 Benson meadow, 6 Ember den, 7 Bramble garden, 8 Twilight grove — no other changes.”`
+
+When one image feels right, send it to the agent → we derive `arc1.map.json` hotspot positions.
 
 ---
 
@@ -260,3 +297,4 @@ Full verbatim blocks: Dropbox `Arc Skeletons/ARC_01_SKELETON_FINAL.md` (search `
 | Date | Version | Change |
 |------|---------|--------|
 | 2026-06-01 | v1 | Initial excavation: Bible v13.13, ND v2.9, Arc 1 skeleton, VPG v4.6, gameplay scope |
+| 2026-06-01 | v1.1 | Kim review: single persistent map, moderate Ori pan, Mountain Kingdom cut from Arc 1 art; §12 ChatGPT prompt |
