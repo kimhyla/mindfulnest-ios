@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Runs fast local QA before any push. Replaces Cursor "Find Issues" (no API credits).
+# Emergency bypass only: git push --no-verify
+set -e
+npm run qa:pre-push

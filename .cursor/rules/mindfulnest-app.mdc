@@ -9,8 +9,10 @@ alwaysApply: false
 ## Verification before claiming done
 
 ```bash
-npm run lint && npm test && npm run test:coppa-contracts
+npm run qa:pre-push
 ```
+
+Pre-push hook runs this automatically on `git push`. PR CI is the merge gate.
 
 ## Creature canon (Arc 1)
 
