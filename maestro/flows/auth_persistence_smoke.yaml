@@ -1,0 +1,86 @@
+# Reliability-tier: 3
+# MindfulNest — LD-278 Auth Persistence Smoke
+#
+# Proves native Firebase Auth survives kill + cold relaunch on iOS simulator.
+# Credentials: scripts/qa/ensure-maestro-smoke-user.mjs (MAESTRO_SMOKE_EMAIL/PASSWORD).
+# Not wired to PR gate — Tier 3 until stable on local + CI harness.
+#
+# Run:
+#   node scripts/qa/ensure-maestro-smoke-user.mjs
+#   maestro test maestro/flows/auth_persistence_smoke.yaml \
+#     -e MAESTRO_SMOKE_EMAIL=... -e MAESTRO_SMOKE_PASSWORD=...
+
+appId: com.mindfulnest.app
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- waitForAnimationToEnd:
+    timeout: 8000
+
+# Expo dev client shows a launcher until a bundler is selected (local runs only;
+# CI EAS simulator builds embed JS and skip this screen).
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 20000
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    point: "92%,14%"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: auth_persist_01_sign_in
+
+- tapOn: "Email"
+- eraseText
+- inputText: ${MAESTRO_SMOKE_EMAIL}
+- tapOn:
+    id: sign-in-password
+    optional: true
+- tapOn:
+    text: "Password"
+    optional: true
+- inputText: ${MAESTRO_SMOKE_PASSWORD}
+- tapOn:
+    id: sign-in-submit
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 15000
+- tapOn:
+    text: "Not Now"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: auth_persist_02_signed_in_map
+- assertVisible: "Everdale Map"
+
+# Force-quit equivalent — must NOT clear keychain on relaunch.
+- killApp
+- launchApp:
+    clearState: false
+    clearKeychain: false
+- waitForAnimationToEnd:
+    timeout: 20000
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 25000
+- tapOn:
+    point: "92%,14%"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 10000
+- tapOn:
+    text: "Not Now"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: auth_persist_03_after_kill_relaunch
+
+# Map title means auth persisted through kill + cold relaunch.
+- assertVisible: "Everdale Map"

@@ -1,0 +1,34 @@
+---
+description: Quality gates without Cursor Find Issues — pre-push hook + PR CI
+alwaysApply: true
+---
+
+# MindfulNest — QA workflow (no Find Issues)
+
+## Never use Cursor Review "Find Issues"
+
+That button burns **API** usage credits. Do **not** suggest it, wait for it, or block commits on it.
+
+## Default ship path (always)
+
+1. Work on a **feature branch** (not direct commits to `main` for app changes).
+2. **Commit** when the user asks or when a task is complete.
+3. **Push** — `.husky/pre-push` runs `npm run qa:pre-push` automatically.
+4. **Open a PR** with `gh pr create` — GitHub CI is the full review layer (Maestro, telemetry, rules, etc.).
+5. Merge only when required checks are green.
+
+## Local gates (automatic + manual)
+
+| When | What runs |
+|------|-----------|
+| Every commit | `.husky/pre-commit` → lint-staged (ESLint on staged files) |
+| Every push | `.husky/pre-push` → `npm run qa:pre-push` |
+| Every PR | `.github/workflows/*` (full CI) |
+
+Manual re-run: `npm run qa:pre-push`
+
+## Agent behavior
+
+- Never tell Kim to click **Find Issues** in the Review tab.
+- For "is this safe to commit?": run or cite `npm run qa:pre-push`, then use PR + CI for merge proof.
+- Maestro auth smoke (`maestro/flows/auth_persistence_smoke.yaml`) is Tier 3 / manual or CI-adjacent — not pre-push.
