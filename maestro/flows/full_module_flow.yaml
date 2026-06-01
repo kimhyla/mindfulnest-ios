@@ -1,9 +1,13 @@
 # Reliability-tier: 3
-# MindfulNest — Full Module Navigation Flow (testID-based)
-# Layer 4: Regression testing — complete 7-screen navigation
-# Tests flow: map → intro → phase_a → phase_b → resolution → win → decoration → map
-# Updated: April 16, 2026 — switched from text: to id: selectors per Directus decision 118
-# Tier 3: full integration (8x assertVisible end-to-end; depends on screens not all built yet).
+# MindfulNest — Full Module Route Flow (LD-280 placeholder)
+# Layer 4: Regression testing — module route smoke for the single-MP4 architecture.
+#
+# The old 7-screen flow (map → intro → phase_a → phase_b → resolution → win →
+# decoration) was removed because LD-280 bans separate module phase screens.
+# This Tier-3 flow is intentionally screenshot-only until Sprint C wires
+# authenticated Maestro state + real Everdale sprite taps + progression gates.
+# It should never reference the old scaffold button testID or legacy screen IDs.
+#
 # Runs pre-release only (not yet wired). See maestro/RELIABILITY_TIERS.md.
 #
 # Run: maestro test maestro/flows/full_module_flow.yaml
@@ -14,56 +18,15 @@ appId: com.mindfulnest.app
 - waitForAnimationToEnd:
     timeout: 5000
 
-# Screen 1: Map
-- assertVisible:
-    id: map_screen
-- takeScreenshot: flow_01_map
-- tapOn:
-    id: map_start_module_button
+# Initial app surface. If auth is not seeded, this may be sign-in; that is
+# expected until the Tier-3 authenticated harness ships.
+- takeScreenshot: flow_01_initial_surface
 
-# Screen 2: Intro (The Call)
-- assertVisible:
-    id: intro_screen
-- takeScreenshot: flow_02_intro
-- tapOn:
-    id: intro_continue_button
-
-# Screen 3: Phase A (Buy-In + Demo)
-- assertVisible:
-    id: phase_a_screen
-- takeScreenshot: flow_03_phase_a
-- tapOn:
-    id: phase_a_continue_button
-
-# Screen 4: Phase B (Guided Meditation)
-- assertVisible:
-    id: phase_b_screen
-- takeScreenshot: flow_04_phase_b
-- tapOn:
-    id: phase_b_continue_button
-
-# Screen 5: Resolution (The Rescue)
-- assertVisible:
-    id: resolution_screen
-- takeScreenshot: flow_05_resolution
-- tapOn:
-    id: resolution_continue_button
-
-# Screen 6: Win
-- assertVisible:
-    id: win_screen
-- takeScreenshot: flow_06_win
-- tapOn:
-    id: win_continue_button
-
-# Screen 7: Decoration
-- assertVisible:
-    id: decoration_screen
-- takeScreenshot: flow_07_decoration
-- tapOn:
-    id: decoration_return_button
-
-# Back to Map — verify full cycle
-- assertVisible:
-    id: map_screen
-- takeScreenshot: flow_08_back_to_map
+# Deep link the single module route directly. In unauthenticated test state this
+# should land on the auth gate; in seeded pre-release runs it should reach
+# /module/m1 loading/playback. Screenshots are the evidence until auth seeding
+# and stable native assertions are wired.
+- openLink: mindfulnest://module/m1
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: flow_02_module_route_or_auth_gate

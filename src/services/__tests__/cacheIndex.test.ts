@@ -6,6 +6,7 @@ import {
   MIN_AGE_BEFORE_EVICT_MS,
   __resetForTests,
   allEntries,
+  evictAllExceptArc,
   evictLru,
   get,
   loadFromStorage,
@@ -24,6 +25,7 @@ function makeEntry(overrides: Partial<CacheEntry>): CacheEntry {
     arcId: 'arc1',
     localPath: 'file:///mock/assets/arc1/a1.mp4',
     sizeBytes: 50 * 1024 * 1024,
+    contentHash: 'abc123',
     lastPlayedAt: 1_000,
     downloadedAt: 1_000,
     ...overrides,
@@ -84,6 +86,21 @@ describe('cacheIndex — LRU sort + pin + 24h floor', () => {
     const { freedBytes, evictedAssetIds } = evictLru(100, { pinnedArcId: 'arc-none', nowMs: now });
     expect(evictedAssetIds).toEqual(['small']);
     expect(freedBytes).toBe(5);
+  });
+
+  test('evictAllExceptArc ignores 24h floor but preserves pinned arc', () => {
+    const now = 1_000_000_000;
+    register(makeEntry({ assetId: 'active', arcId: 'arc1', downloadedAt: now, sizeBytes: 10 }));
+    register(makeEntry({ assetId: 'fresh-other', arcId: 'arc2', downloadedAt: now, sizeBytes: 20 }));
+    register(makeEntry({ assetId: 'old-other', arcId: 'arc3', downloadedAt: 0, sizeBytes: 30 }));
+
+    const { freedBytes, evictedAssetIds } = evictAllExceptArc('arc1');
+
+    expect(evictedAssetIds).toEqual(['fresh-other', 'old-other']);
+    expect(freedBytes).toBe(50);
+    expect(get('active')).toBeDefined();
+    expect(get('fresh-other')).toBeUndefined();
+    expect(get('old-other')).toBeUndefined();
   });
 });
 

@@ -5,6 +5,8 @@ import { useAuth } from "../src/hooks/useAuth";
 import { initAudioSession } from "../src/services/audioSession";
 import { initActiveArcPin } from "../src/services/activeArcPin";
 import { loadFromStorage as loadCacheIndex } from "../src/services/cacheIndex";
+import { initializeAppCheck } from "../src/services/appCheckService";
+import { initializeCrashlytics } from "../src/services/crashlyticsService";
 
 function AuthGate({ children }: { children: ReactElement }): ReactElement {
   const { status } = useAuth();
@@ -29,6 +31,18 @@ export default function RootLayout(): ReactElement {
     void initAudioSession();
     void initActiveArcPin();
     void loadCacheIndex();
+
+    // G0 compliance inits (LD-802): App Check attestation, Crashlytics collection
+    // (disabled at launch, enabled on parent consent). Crashlytics is fire-and-forget
+    // (COPPA collection disabled at launch; init failure is non-fatal).
+    // App Check is awaited inside an async IIFE so init errors surface rather
+    // than being silently swallowed. When enforceAppCheck flips to true
+    // (LD-802 gate), any Firebase callable made before this resolves will fail —
+    // add a callable-layer readiness guard at that point.
+    void (async () => {
+      await initializeAppCheck();
+    })();
+    void initializeCrashlytics();
 
     if (__DEV__) {
       // Conditional require so Metro DCEs the entire DevTelemetry + DevTelemetryServer
@@ -69,12 +83,6 @@ export default function RootLayout(): ReactElement {
         >
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="index" options={{ title: "MindfulNest — Everdale Map" }} />
-          <Stack.Screen name="intro" options={{ title: "The Call" }} />
-          <Stack.Screen name="phase_a" options={{ title: "Buy-In + Phase A" }} />
-          <Stack.Screen name="phase_b" options={{ title: "Phase B — Guided Meditation" }} />
-          <Stack.Screen name="resolution" options={{ title: "The Rescue" }} />
-          <Stack.Screen name="win" options={{ title: "Win!" }} />
-          <Stack.Screen name="decoration" options={{ title: "My Space" }} />
           <Stack.Screen name="module/[moduleId]" options={{ headerShown: false }} />
         </Stack>
       </AuthGate>

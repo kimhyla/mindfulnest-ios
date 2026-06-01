@@ -34,11 +34,11 @@ appId: com.mindfulnest.app
 - assertVisible:
     id: map_creature_benson
 - assertVisible:
-    id: map_creature_mo
+    id: map_creature_bork
 
 # Verify navigation button exists
 - assertVisible:
-    id: map_start_module_button
+    id: map_dev_test_module_button
 
 # Capture baseline screenshot
 - takeScreenshot: home_screen_baseline

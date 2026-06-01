@@ -3,8 +3,8 @@
 //
 // Restrictions enforced:
 // 1. no-restricted-imports: bans @sentry/*, bugsnag*, rollbar, phaser,
-//    react-native-spine, @capacitor/*. Refs: LD-220 COPPA_NO_BEHAVIORAL_ADVERTISING,
-//    LD-157 DEV_TELEMETRY_AUTOLINKING_EXCLUSION_PATTERN.
+//    react-native-spine, @capacitor/*.
+//    Refs: LD-220, LD-157, spec v2 §C7-T1.
 // 2. no-restricted-syntax: dynamic import() with non-literal template arg
 //    (prevents runtime-computed imports that bypass the static ban list).
 // 3. @typescript-eslint/no-explicit-any: error level. Agent B audit fix.
@@ -18,7 +18,7 @@ const reactHooksPlugin = require("eslint-plugin-react-hooks");
 
 // Banned modules — see LD-220, LD-157, spec v2 §C7-T1.
 const BANNED_PATTERNS = [
-  { group: ["@sentry/*", "@sentry/**"], message: "Sentry banned — LD-220 no behavioral advertising / telemetry leak risk." },
+  { group: ["@sentry/react-native", "@sentry/*", "@sentry/**"], message: "Sentry banned — LD-220. Use Firebase Crashlytics via src/services/crashlyticsService.ts." },
   { group: ["bugsnag", "bugsnag/*", "@bugsnag/*"], message: "Bugsnag banned — LD-220." },
   { group: ["rollbar", "rollbar/*"], message: "Rollbar banned — LD-220." },
   { group: ["phaser"], message: "Phaser banned — deferred to V2 per LD-128 ANIMATION_STACK_V1_PATH_D_v2." },
@@ -127,4 +127,5 @@ module.exports = [
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
+
 ];

@@ -26,6 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.mindfulnest.app",
+    googleServicesFile: "./GoogleService-Info.plist",
   },
   android: {
     adaptiveIcon: {
@@ -34,6 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
+    googleServicesFile: "./google-services.json",
   },
   web: {
     favicon: "./assets/favicon.png",
@@ -43,6 +45,28 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-router",
     "expo-video",
     "expo-audio",
+    "expo-asset",
+    "@react-native-firebase/app",
+    "@react-native-firebase/auth",
+    "@react-native-firebase/app-check",
+    "@react-native-firebase/crashlytics",
+    // RN Firebase requires static frameworks; forceStaticLinking avoids
+    // RNFBApp non-modular React-Core header errors with prebuilt RN core.
+    [
+      "expo-build-properties",
+      {
+        ios: {
+          useFrameworks: "static",
+          forceStaticLinking: [
+            "RNFBApp",
+            "RNFBAuth",
+            "RNFBAppCheck",
+            "RNFBCrashlytics",
+            "RNFBFunctions",
+          ],
+        },
+      },
+    ],
     ...(isProduction ? [] : ["./plugins/withDevTelemetryServer"]),
   ],
   extra: {

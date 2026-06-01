@@ -15,7 +15,9 @@
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "prepare": "husky || exit 0",
-    "test": "jest --config jest.config.js"
+    "test": "jest --config jest.config.js",
+    "test:coppa-contracts": "node scripts/qa/coppa-function-contract.test.mjs",
+    "postinstall": "node scripts/patch-expo-plist-xmldom.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -24,8 +26,15 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-firebase/app": "^24.0.0",
+    "@react-native-firebase/app-check": "^24.0.0",
+    "@react-native-firebase/auth": "^24.0.0",
+    "@react-native-firebase/crashlytics": "^24.0.0",
+    "@react-native-firebase/functions": "^24.0.0",
     "expo": "~54.0.33",
+    "expo-asset": "~12.0.13",
     "expo-audio": "~1.1.1",
+    "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.8",
     "expo-dev-client": "~6.0.20",
@@ -34,7 +43,6 @@
     "expo-router": "~6.0.23",
     "expo-status-bar": "~3.0.9",
     "expo-video": "~3.0.16",
-    "firebase": "^12.0.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
@@ -60,6 +68,23 @@
     "ts-jest": "^29.4.9",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.58.2"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "0.8.13",
+    "fast-uri": "3.1.2",
+    "protobufjs": "7.6.1",
+    "react-native-http-bridge-refurbished": {
+      "react": "$react"
+    }
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-http-bridge-refurbished"
+        ]
+      }
+    }
   },
   "private": true
 }

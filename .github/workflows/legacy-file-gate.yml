@@ -1,0 +1,77 @@
+# MindfulNest — Legacy Multi-Screen Placeholder Gate
+#
+# Prevents reintroduction of the 6 legacy multi-screen placeholder files that
+# directly contradict LD-280 RENDERING_ARCHITECTURE_SINGLE_MP4_ATOMIC_V1.
+#
+# Why banned: these files represent a multi-screen architecture (separate intro,
+# phase_a, phase_b, resolution, win, decoration screens). LD-280 locks single
+# atomic MP4 playback per module. A stale navigation stack accidentally routing
+# to e.g. phase_b.tsx with expo-audio present = silent Rule 22 violation.
+#
+# Refs: prod_locked_decisions LD-280 RENDERING_ARCHITECTURE_SINGLE_MP4_ATOMIC_V1,
+#       CLAUDE.md Rule 22 watch list, SHIP_READINESS_PARALLEL_TRACKS_v2.md Stream C item 0.
+
+name: Legacy File Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  check-no-legacy-screens:
+    name: Block reintroduction of legacy multi-screen placeholders (LD-280)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for banned legacy files
+        run: |
+          FAIL=0
+
+          if [ -f "app/intro.tsx" ]; then
+            echo "FAIL: app/intro.tsx violates LD-280 (RENDERING_ARCHITECTURE_SINGLE_MP4_ATOMIC_V1) — legacy intro screen banned; single atomic MP4 handles module intro."
+            FAIL=1
+          fi
+
+          if [ -f "app/phase_a.tsx" ]; then
+            echo "FAIL: app/phase_a.tsx violates LD-280 (RENDERING_ARCHITECTURE_SINGLE_MP4_ATOMIC_V1) — separate Phase A screen banned; Phase A is baked into the single module MP4."
+            FAIL=1
+          fi
+
+          if [ -f "app/phase_b.tsx" ]; then
+            echo "FAIL: app/phase_b.tsx violates LD-280 (RENDERING_ARCHITECTURE_SINGLE_MP4_ATOMIC_V1) — separate Phase B screen banned; Phase B audio is baked into the single module MP4."
+            FAIL=1
+          fi
+
+          if [ -f "app/resolution.tsx" ]; then
+            echo "FAIL: app/resolution.tsx violates LD-280 (RENDERING_ARCHITECTURE_SINGLE_MP4_ATOMIC_V1) — legacy resolution screen banned; single atomic MP4 covers full module arc."
+            FAIL=1
+          fi
+
+          if [ -f "app/win.tsx" ]; then
+            echo "FAIL: app/win.tsx violates LD-280 (RENDERING_ARCHITECTURE_SINGLE_MP4_ATOMIC_V1) — legacy win screen banned; single atomic MP4 covers full module arc."
+            FAIL=1
+          fi
+
+          if [ -f "app/decoration.tsx" ]; then
+            echo "FAIL: app/decoration.tsx violates LD-280 (RENDERING_ARCHITECTURE_SINGLE_MP4_ATOMIC_V1) — legacy decoration screen banned; decoration surfaces are not runtime screens."
+            FAIL=1
+          fi
+
+          if [ "$FAIL" -eq 0 ]; then
+            echo "OK: No legacy multi-screen placeholder files found. LD-280 architecture intact."
+          else
+            echo ""
+            echo "One or more banned legacy files were found. These files contradict LD-280"
+            echo "(RENDERING_ARCHITECTURE_SINGLE_MP4_ATOMIC_V1 — CLAUDE.md Rule 22 watch list)."
+            echo "Remove the flagged file(s) before merging."
+            exit 1
+          fi

@@ -1,0 +1,25 @@
+---
+description: Firestore rules and Cloud Functions — COPPA, region, tests
+globs: firestore/**,functions/**
+alwaysApply: false
+---
+
+# MindfulNest — Firebase / server
+
+## COPPA guard (spec §7.2)
+
+- Any Cloud Function that imports `firebase-admin` and touches `/children/*` **must** import `withCoppaGuard`.
+- Verify: `npm run test:coppa-contracts`
+
+## Firestore rules
+
+- After any change to `firestore/firestore.rules` or rules tests: `npm run test:rules`
+
+## Region
+
+- Cloud Functions v2: `us-central1` (LD-222 US data residency)
+
+## App Check
+
+- Client: `src/services/appCheckService.ts` — init before callables.
+- Callables: `enforceAppCheck: true` (LD-802 gate closed 2026-05-25).
