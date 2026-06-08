@@ -98,7 +98,6 @@ Temporary stash `safety-cursor-rules-20260601-kim-request` was **popped** and ru
 
 Run after merge; record results below.
 
-<<<<<<< HEAD
 | Pass | Check | Result |
 |------|-------|--------|
 | 1 | Branch pushed | `9c7971c` on `docs/sprint-d-everdale-map-spec` → PR #34 |
