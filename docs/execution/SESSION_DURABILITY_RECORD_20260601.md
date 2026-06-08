@@ -106,7 +106,11 @@ Run after merge; record results below.
 | 4 | File on main | `git show main:docs/execution/EVERDALE_MAP_CANON_REFERENCE_v1.md` | exists |
 | 5 | Local QA | `npm run qa:pre-push` on main | pass |
 
-*Pass 1–5 results filled in by agent at merge time.*
+| 1 | Branch pushed | `f33767d` on `docs/sprint-d-everdale-map-spec` | OK |
+| 2 | PR CI green | `gh pr checks 34` | OK (after package.json trigger commit) |
+| 3 | Merge to main | `gh pr merge 34` | pending |
+| 4 | File on main | `git show main:docs/execution/EVERDALE_MAP_CANON_REFERENCE_v1.md` | pending |
+| 5 | Local QA | `npm run qa:pre-push` | OK 2026-06-07 |
 
 ---
 
