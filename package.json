@@ -33,7 +33,7 @@
     "@react-native-firebase/auth": "^24.0.0",
     "@react-native-firebase/crashlytics": "^24.0.0",
     "@react-native-firebase/functions": "^24.0.0",
-    "expo": "~54.0.33",
+    "expo": "~56.0.9",
     "expo-asset": "~12.0.13",
     "expo-audio": "~1.1.1",
     "expo-build-properties": "~1.0.10",
