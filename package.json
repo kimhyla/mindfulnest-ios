@@ -18,6 +18,7 @@
     "test": "jest --config jest.config.js",
     "test:coppa-contracts": "node scripts/qa/coppa-function-contract.test.mjs",
     "qa:pre-push": "bash scripts/qa/pre-push-gates.sh",
+    "verify:execution-index": "test -f docs/execution/EXECUTION_INDEX_v1.md && test -f docs/execution/EVERDALE_MAP_CANON_REFERENCE_v1.md",
     "postinstall": "node scripts/patch-expo-plist-xmldom.mjs"
   },
   "lint-staged": {

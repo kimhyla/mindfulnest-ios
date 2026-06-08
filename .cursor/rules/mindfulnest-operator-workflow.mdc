@@ -1,0 +1,27 @@
+---
+description: Kim never runs terminal/server ops — agent owns restarts, deploys, and QA commands
+alwaysApply: true
+---
+
+# MindfulNest — operator workflow (Kim does not run terminal)
+
+Kim does **not** run shell commands, server restarts, deploy scripts, or QA locally. The agent must do all of that without asking her to.
+
+## Always agent-run (never delegate to Kim)
+
+- Restart `production_server.py` (Storyboard on localhost:5111) after tooling/Python changes
+- Run `npm run qa:pre-push`, pytest, deploy scripts, smoke curls
+- Rebuild canonical kits, register Elements, reconcile sidecar from disk
+- Diagnose failures by reading logs and re-running commands — do not stop at "please restart the server"
+
+## Production server restart
+
+When Beat Gen / Kling / storyboard server code changed:
+
+1. `curl -s -X POST http://localhost:5111/api/server/restart` (or kill + relaunch if API unavailable)
+2. Confirm HTTP 200 on `http://localhost:5111/`
+3. Tell Kim the server is live — not "you should restart"
+
+## Storyboard deploy path
+
+Server reads from Dropbox `Production/Event_*` + `mindfulnest-tooling/Production/tools/`. After Python edits in tooling, restart is required for Submit/Redo behavior to change.

@@ -1,0 +1,26 @@
+---
+description: When production tooling paths come up, remind Kim to use the mindfulnest-tooling Cursor window for git/PR work.
+globs:
+alwaysApply: true
+---
+
+# Production tooling lives in a separate repo
+
+MindfulNest (this workspace) is the **kid-facing app**. Production storyboard / Beat Gen / `production_server.py` live in **`mindfulnest-tooling`** — a sibling folder, usually:
+
+`~/Projects/mindfulnest-tooling`
+
+## When editing tooling
+
+If the task touches `Production/tools/`, `beat_generator.py`, `production_server.py`, `storyboard-v2/`, or Dropbox `Production/Event_*`:
+
+1. **Open that folder as its own Cursor window:** menu **File → Open Folder…** → choose `mindfulnest-tooling`.
+2. Do commits and PRs from that window so git status matches the files you changed.
+
+## Git popup ("repositories found in parent folders")
+
+If Cursor asks whether to open Git repositories for parent folders → choose **Never** while working in MindfulNest, or **Yes** only if you want both repos visible here. It is not an error — just two repos on disk.
+
+## Server
+
+Storyboard server: `http://localhost:5111` (started from mindfulnest-tooling with `--event-dir` pointing at Dropbox `Production/Event_1`).

@@ -1,0 +1,39 @@
+---
+description: Canonical intro mirror tail — single g13 composite, penultimate fade, Stitcher export
+alwaysApply: true
+---
+
+# Intro canonical mirror tail (Beat Gen + Stitcher)
+
+## Single canonical (no rotation)
+
+- One approved mirror tail for **all** intro videos: beat_13 g3 speak + LD-737 burst + whiteout hold.
+- Registry: `single_canonical: true`, slot 0 only — `Production/templates/chipper_teleport_intro/canonical_registry.json`.
+- Sidecar last intro beat: `intro_beat_role: canonical_mirror_video`, video = full composite (`*_canonical_g13_g3_intro_tail.mp4`), not raw speak-only clips.
+
+## Penultimate fades (mandatory on intro export)
+
+- On **intro / pre** BG export to Stitcher, apply **fade-through-black** on the **last two** boundaries only (not crossfade / dissolve overlap):
+  - **3rd-to-last → penultimate** (`pre_penultimate_pair_fade_ms`, default 1500ms) — outgoing clip fades to black; incoming fades from black; A/V hard-cut at the join
+  - **Penultimate → canonical mirror tail** (`final_pair_fade_ms`, default 2800ms)
+- All earlier boundaries stay hard cuts.
+- Implementation: `trim_body_with_fade(..., fade_audio=False)` — short video fade at tail/head (`fade_out_video_tail_ms` / `fade_in_video_head_ms`, default 600ms); audio full until hard cut. No inserted black pause clips.
+- Fades are **baked into the exported intro mp4** — re-run **Send to Stitcher** after changes. Deploy tooling → Dropbox before testing.
+
+## Send to Stitcher (BG UI)
+
+- Footer + toolbar: **Send to Stitcher ({slot})** — concat approved Kling clips → Stitcher slot.
+- Slot mapping: `pre`/`intro` → **intro**; `post`/`resolution` → **resolution**; `phase_a` → **phase_a**; `phase_b` → **phase_b**.
+- Requires every beat **Kling-approved** with video on disk before send.
+
+## Beat trim on export (durable)
+
+- Front/back trims live on the sidecar beat as `kling_o3_trim_start` / `kling_o3_trim_back` (Apply Trim in BG UI).
+- **Persist:** `SIDECAR_MERGE_PRESERVE_FIELDS` in `beat_generator.py` — re-extract, locked-lines import, and segment merge must keep trim fields (never narrow `_PRESERVE` to status-only).
+- **Export:** `concat_kling_o3_approved_beats()` routes every non-canonical-tail beat through `_kling_o3_export_clip_path` → `materialize_kling_o3_trimmed_clip` when trim is active — never raw `kling_o3_video_path`.
+- **Exception:** last intro beat uses pre-built canonical `intro_tail.mp4` (trim baked in at build time).
+
+## Do not regress
+
+- Never lighten-blend shared glass onto speak freeze (ghost/double Chipper). Use `kling_from_frozen_frame` burst + direct concat.
+- Do not restore pinned preserve to g0/g14 speak-only — pinned slot must match the canonical composite.

@@ -15,6 +15,9 @@ alwaysApply: true
 ## Map / home (master spec §3.2)
 
 - **Shipping UX:** scrollable Everdale WebP map; child **taps creature sprites** to start a module — not a generic "Start module" button.
+- **One persistent Everdale world** per arc — all areas (My House, Heartwood, creature homes) on a single scrollable map; zone fidgets = popups on same map.
+- **Ambient Magic Tap** after Oliver Meet (no wand toggle). Full inventory: `docs/execution/EVERDALE_MAP_CANON_REFERENCE_v1.md`.
+- **Sprint D:** `docs/execution/STAGE2_SPRINT_D_EXECUTION_SPEC_v1.md` — **no D1 code until D0 layout lock.**
 - Current `app/index.tsx` is a **Stage 1 dev scaffold** (placeholder text). Do not treat scaffold controls as kid-facing UI.
 - Scaffold/dev controls must be **`__DEV__` only** — never visible in production/preview builds.
 
