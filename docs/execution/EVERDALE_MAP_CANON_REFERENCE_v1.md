@@ -5,6 +5,8 @@
 **Purpose:** Single repo-local place for everything the Everdale map must do. You should not have to remember Magic Tap rules, creature order, or which Bible version is current — this doc points to authoritative sources and lists every shipping requirement.
 
 **Sprint D execution spec:** `STAGE2_SPRINT_D_EXECUTION_SPEC_v1.md` (implementation phases)  
+**Session record (locked Kim decisions):** `SESSION_DURABILITY_RECORD_20260601.md`  
+**Doc index:** `EXECUTION_INDEX_v1.md`  
 **This doc:** *what* the map is (excavated from canon)
 
 ---
