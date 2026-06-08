@@ -98,6 +98,7 @@ Temporary stash `safety-cursor-rules-20260601-kim-request` was **popped** and ru
 
 Run after merge; record results below.
 
+<<<<<<< HEAD
 | Pass | Check | Result |
 |------|-------|--------|
 | 1 | Branch pushed | `9c7971c` on `docs/sprint-d-everdale-map-spec` → PR #34 |
@@ -105,6 +106,16 @@ Run after merge; record results below.
 | 3 | Merge to main | `6a9b2f5` squash merge PR #34 |
 | 4 | Files on main | `EVERDALE_MAP_CANON_REFERENCE_v1.md`, `EXECUTION_INDEX_v1.md`, rules — verified via `git show origin/main:` |
 | 5 | Local QA | `npm run qa:pre-push` + `npm run verify:execution-index` pass on `main` |
+
+Reference command checklist used during verification:
+
+| Pass | Check | Command / URL | Expected |
+|------|-------|---------------|----------|
+| 1 | Branch pushed | `git log origin/docs/sprint-d-everdale-map-spec -1` | Latest commit present |
+| 2 | PR CI green | `gh pr checks 34` | All checks pass |
+| 3 | Merge to main | `gh pr merge 34` | Merge succeeds |
+| 4 | File on main | `git show main:docs/execution/EVERDALE_MAP_CANON_REFERENCE_v1.md` | File exists |
+| 5 | Local QA | `npm run qa:pre-push` on `main` | Pass |
 
 ---
 
